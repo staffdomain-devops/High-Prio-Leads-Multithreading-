@@ -10,8 +10,6 @@ CRITICAL: Return only a raw JSON object. No markdown. No code blocks. No backtic
 
 ---
 
-{{kdm_context}}
-
 ## THE EMAIL(S) TO WRITE
 
 {{email_specs}}

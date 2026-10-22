@@ -1,8 +1,7 @@
 """
 Route A — emails that never reference calls or other contacts.
 
-Round 0: email_1 for one contact.  Round 3: email_4 + email_5.
-The confirmed KDM gets their last call outcome as soft context only.
+Round 0: email_1 for one contact.  Round 3: email_4 + email_5 for contacts never reached.
 """
 
 import os
@@ -12,17 +11,6 @@ import build_matrix as bm
 import emailgen
 from claude import MODEL
 from utils import write_dlq
-
-
-def kdm_context(ctx):
-    if not ctx.get("is_kdm"):
-        return ""
-    return (
-        "## CONTEXT ONLY (do not mention it)\n\n"
-        "You have already spoken with this person by phone and they are the decision maker for this role. "
-        f"Their latest call outcome was: {ctx['last_outcome']}. "
-        "Do not reference the calls, but do not write anything that implies you have never spoken.\n\n---\n"
-    )
 
 
 def main():
@@ -39,7 +27,6 @@ def main():
 
     slots = bm.ROUND_SLOTS[round_no]
     tokens = emailgen.tokens_for(plan, research, cid)
-    tokens["kdm_context"] = kdm_context(plan["contexts"][cid])
     tokens["email_specs"] = "\n\n".join(emailgen.render(f"specs/email_{n}.md", tokens) for n in slots)
     tokens["output_format"] = emailgen.output_format(slots)
     prompt = emailgen.render("route_a_prompt.md", tokens)

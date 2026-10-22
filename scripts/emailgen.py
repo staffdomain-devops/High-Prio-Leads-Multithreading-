@@ -73,7 +73,8 @@ def output_format(slots):
 
 
 def slot_props(n):
-    return f"subject_{n}", f"email_{n}"
+    """This pipeline's own contact fields — never shared with High-Prio-Leads' subject_N/email_N."""
+    return f"hplmt_subject_{n}", f"hplmt_email_{n}"
 
 
 def already_written(cid, round_no):
@@ -114,8 +115,10 @@ def write_contact(plan, research, cid, emails):
             f"Job insights: {research.get('job_description_insights', '')}",
             f"Buyer frame: {(research.get('buyer_frames') or {}).get(cid, '')}",
         ]
-        properties["hpl_research_summary"] = safe_truncate("\n\n".join(summary), 65000)
-    properties["hpl_generated_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        properties["hplmt_research_summary"] = safe_truncate("\n\n".join(summary), 65000)
+        # Lock the contact to this Opportunity until they drop out or the sequence ends
+        properties["hplmt_active_opportunity_id"] = plan["opportunity_id"]
+    properties["hplmt_generated_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     record = {"contact_id": cid, "round": round_no, "emails": emails, "properties": properties,
               "written": not is_dry_run()}

@@ -66,39 +66,23 @@ def test_all_missed_each_email_references_the_other_two():
     assert bm.recipients(m) == [A, B, C]
     ctx = bm.route_b_context(m, B)
     assert ctx["state"] == bm.MISSED
-    assert ctx["others"] == [{"first_name": "Alice", "state": bm.MISSED}, {"first_name": "Cara", "state": bm.MISSED}]
+    assert ctx["others"] == [{"first_name": "Alice", "state": bm.MISSED, "outcome": "No answer"},
+                              {"first_name": "Cara", "state": bm.MISSED, "outcome": "No answer"}]
 
 
 # --- scenario 2: KDM found mid-round -----------------------------------------
 
-def test_kdm_found_freezes_everyone_else_including_uncalled():
-    m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, NO_ANSWER), B: call(1, CONNECTED, "Yes")})
+def test_kdm_found_stops_everyone_including_the_kdm():
+    before = bm.new_matrix(CONTACTS)
+    m = run_round(before, 1, {A: call(1, NO_ANSWER), B: call(1, CONNECTED, "Yes")})
     assert m["status"] == bm.STATUS_KDM_FOUND
     assert m["kdm_contact_id"] == B
     assert states(m) == {A: bm.FROZEN, B: bm.KDM, C: bm.FROZEN}
-    assert bm.recipients(m) == [B]
-    assert bm.route_b_context(m, B) == {
-        "state": bm.KDM, "connected_this_round": True, "last_outcome": "Connected", "others": []}
-    assert bm.slots_to_clear(bm.new_matrix(CONTACTS), m) == {A: [2, 3, 4, 5], C: [2, 3, 4, 5]}
-
-
-def test_kdm_track_continues_round_by_round():
-    m = run_round(bm.new_matrix(CONTACTS), 1, {B: call(1, CONNECTED, "Yes")})
-    m2 = run_round(m, 2, {B: call(2, NO_ANSWER)})
-    assert states(m2)[B] == bm.KDM
-    assert bm.recipients(m2) == [B]
-    assert bm.route_b_context(m2, B)["connected_this_round"] is False
-    m3 = run_round(m2, 3, {B: call(3, CALL_BACK)})
-    assert bm.recipients(m3) == [B]
-    assert bm.route_a_context(m3, B) == {"state": bm.KDM, "is_kdm": True, "last_outcome": "Connected Call Back later"}
-
-
-def test_kdm_not_interested_later_closes_the_opportunity():
-    m = run_round(bm.new_matrix(CONTACTS), 1, {B: call(1, CONNECTED, "Yes")})
-    m2 = run_round(m, 2, {B: call(2, NOT_INTERESTED)})  # KDM field left blank on the later call
-    assert m2["status"] == bm.STATUS_CLOSED_LOST
-    assert bm.recipients(m2) == []
-    assert bm.slots_to_clear(m, m2) == {B: [3, 4, 5]}
+    assert bm.recipients(m) == []
+    assert bm.slots_to_clear(before, m) == {A: [2, 3, 4, 5], B: [2, 3, 4, 5], C: [2, 3, 4, 5]}
+    assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
+    with pytest.raises(ValueError):
+        run_round(m, 2, {})
 
 
 def test_first_kdm_in_call_order_wins():
@@ -127,7 +111,7 @@ def test_not_interested_non_kdm_opts_out_and_is_never_referenced(kdm_status):
     assert m["status"] == bm.STATUS_ACTIVE
     assert states(m)[A] == bm.OPTED_OUT
     assert bm.recipients(m) == [B, C]
-    assert bm.route_b_context(m, B)["others"] == [{"first_name": "Cara", "state": bm.MISSED}]
+    assert bm.route_b_context(m, B)["others"] == [{"first_name": "Cara", "state": bm.MISSED, "outcome": "No answer"}]
 
 
 # --- connected but not KDM / unclear ---------------------------------------------
@@ -136,17 +120,36 @@ def test_not_kdm_leaves_pool_but_is_referenced():
     m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, CONNECTED, "No"), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
     assert states(m)[A] == bm.NOT_KDM
     assert bm.recipients(m) == [B, C]
-    assert {"first_name": "Alice", "state": bm.NOT_KDM} in bm.route_b_context(m, C)["others"]
+    assert {"first_name": "Alice", "state": bm.NOT_KDM, "outcome": "Connected"} in bm.route_b_context(m, C)["others"]
     # still referenced in the next round
     m2 = run_round(m, 2, {B: call(2, NO_ANSWER), C: call(2, NO_ANSWER)})
-    assert {"first_name": "Alice", "state": bm.NOT_KDM} in bm.route_b_context(m2, B)["others"]
+    assert {"first_name": "Alice", "state": bm.NOT_KDM, "outcome": "Connected"} in bm.route_b_context(m2, B)["others"]
 
 
-def test_spoke_unclear_stays_in_pool():
+def test_spoke_unclear_stops_but_is_referenced():
     m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, CALL_BACK, "Unclear"), B: call(1, NO_ANSWER), C: call(1, CONNECTED)})
     assert states(m) == {A: bm.SPOKE_UNCLEAR, B: bm.MISSED, C: bm.SPOKE_UNCLEAR}
-    assert bm.recipients(m) == [A, B, C]
-    assert bm.route_b_context(m, A)["connected_this_round"] is True
+    assert m["status"] == bm.STATUS_ACTIVE
+    assert bm.recipients(m) == [B]
+    assert bm.route_b_context(m, B)["others"] == [
+        {"first_name": "Alice", "state": bm.SPOKE_UNCLEAR, "outcome": "Connected Call Back later"},
+        {"first_name": "Cara", "state": bm.SPOKE_UNCLEAR, "outcome": "Connected"}]
+    assert bm.slots_to_clear(bm.new_matrix(CONTACTS), m) == {A: [2, 3, 4, 5], C: [2, 3, 4, 5]}
+
+
+@pytest.mark.parametrize("disposition", [CONNECTED, CALL_BACK, "e94640e4-419c-4ab9-9b49-fc383da05778"])
+def test_any_connect_stops_that_contact(disposition):
+    m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, disposition), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
+    assert A not in bm.recipients(m)
+    assert bm.recipients(m) == [B, C]
+
+
+def test_everyone_connects_without_kdm_leaves_nobody():
+    m = run_round(bm.new_matrix(CONTACTS), 1,
+                  {A: call(1, CONNECTED, "No"), B: call(1, CALL_BACK), C: call(1, NOT_INTERESTED)})
+    assert m["status"] == bm.STATUS_ACTIVE
+    assert bm.recipients(m) == []
+    assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
 
 
 def test_kdm_yes_on_non_connected_call_is_ignored():
@@ -189,7 +192,7 @@ def test_three_rounds_all_missed_then_email_4_5_for_everyone():
         m = run_round(m, r, {A: call(r, NO_ANSWER), B: call(r, NO_ANSWER), C: call(r, NO_ANSWER)})
     assert m["round"] == 3
     assert bm.recipients(m) == [A, B, C]
-    assert bm.route_a_context(m, A) == {"state": bm.MISSED, "is_kdm": False, "last_outcome": ""}
+    assert bm.route_a_context(m, A) == {"state": bm.MISSED}
     assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
 
 
@@ -197,7 +200,7 @@ def test_kdm_found_in_round_two_freezes_previous_missed():
     m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, NO_ANSWER), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
     m2 = run_round(m, 2, {A: call(2, NO_ANSWER), B: call(2, NO_ANSWER), C: call(2, CONNECTED, "Yes")})
     assert states(m2) == {A: bm.FROZEN, B: bm.FROZEN, C: bm.KDM}
-    assert bm.slots_to_clear(m, m2) == {A: [3, 4, 5], B: [3, 4, 5]}
+    assert bm.slots_to_clear(m, m2) == {A: [3, 4, 5], B: [3, 4, 5], C: [3, 4, 5]}
 
 
 # --- task text ----------------------------------------------------------------
@@ -210,8 +213,8 @@ def test_task_text_pool_mode():
     assert "unless a KDM is confirmed" in notes
 
 
-def test_task_text_kdm_mode():
-    m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, NO_ANSWER), B: call(1, CONNECTED, "Yes")})
+def test_task_text_lists_only_contacts_still_to_reach():
+    m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, CONNECTED, "No"), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
     title, notes = bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS)
-    assert title == "Call 2 of 3 · City Beach · Assistant Buyer · KDM: Ben B"
-    assert notes.splitlines()[0] == "1. Ben Baker · no phone · last outcome: Connected"
+    assert title == "Call 2 of 3 · City Beach · Assistant Buyer · Call in order: Ben B → Cara C"
+    assert notes.splitlines()[0] == "1. Ben Baker · no phone · last outcome: No answer"

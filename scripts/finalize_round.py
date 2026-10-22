@@ -20,9 +20,12 @@ def main():
     write_dlq(opp_id, None, "finalize_round", "Script started", retry_count=0)
 
     clears = {
-        cid: {prop: "" for n in slots for prop in (f"subject_{n}", f"email_{n}")}
+        cid: {prop: "" for n in slots for prop in (f"hplmt_subject_{n}", f"hplmt_email_{n}")}
         for cid, slots in plan["clear_slots"].items()
     }
+    # Contacts who dropped out (or the whole pool, once the sequence ends) can join another sequence
+    for cid in plan["release"]:
+        clears.setdefault(cid, {})["hplmt_active_opportunity_id"] = ""
     opp_props = {
         "hpl_call_matrix": json.dumps(plan["matrix_after"], ensure_ascii=False),
         "hpl_next_call_task_title": plan["next_task"]["title"],

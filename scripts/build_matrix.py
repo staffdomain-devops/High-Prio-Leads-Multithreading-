@@ -38,22 +38,23 @@ CONNECTED = {
 }
 # Every other disposition (Busy, Left voicemail, No answer, Wrong number, ...) is MISSED
 
-# Contact states
+# Contact states. Anyone who connects stops getting emails; only MISSED contacts continue.
 PENDING       = "PENDING"        # in the pool, not called yet (round 0)
-MISSED        = "MISSED"         # called, didn't connect (or no call in window)
-SPOKE_UNCLEAR = "SPOKE_UNCLEAR"  # connected, KDM question unanswered
-NOT_KDM       = "NOT_KDM"        # connected, confirmed not the KDM — leaves the pool
-KDM           = "KDM"            # confirmed KDM — everyone else frozen
-OPTED_OUT     = "OPTED_OUT"      # not interested, not the KDM — leaves the pool, never referenced
-FROZEN        = "FROZEN"         # someone else became the KDM / closed the opportunity
-CLOSED_LOST   = "CLOSED_LOST"    # the KDM said not interested — sequence over
+MISSED        = "MISSED"         # called, didn't connect (or no call in window) — gets the next email
+SPOKE_UNCLEAR = "SPOKE_UNCLEAR"  # connected, KDM unclear — stops, still referenced
+NOT_KDM       = "NOT_KDM"        # connected, confirmed not the KDM — stops, still referenced
+KDM           = "KDM"            # connected, confirmed KDM — the whole sequence stops
+OPTED_OUT     = "OPTED_OUT"      # not interested, not the KDM — stops, never referenced
+FROZEN        = "FROZEN"         # stopped because the KDM was reached
+CLOSED_LOST   = "CLOSED_LOST"    # the KDM said not interested — the whole sequence stops
+ENGAGED       = "ENGAGED"        # replied by email or booked a meeting — stops, never referenced
 
-LIVE_STATES = {PENDING, MISSED, SPOKE_UNCLEAR}
+LIVE_STATES = {PENDING, MISSED}
 REFERENCEABLE_STATES = {MISSED, SPOKE_UNCLEAR, NOT_KDM}
 
 STATUS_ACTIVE      = "active"
-STATUS_KDM_FOUND   = "kdm_found"
-STATUS_CLOSED_LOST = "closed_lost"
+STATUS_KDM_FOUND   = "kdm_found"    # terminal: the rep has the KDM, no more emails
+STATUS_CLOSED_LOST = "closed_lost"  # terminal
 
 ICP_TIERS = ("Prime", "Core", "Opportunistic", "Non-ICP")
 
@@ -89,12 +90,13 @@ def short_name(first, last):
     return f"{first or ''} {(last or '')[:1]}".strip()
 
 
-def new_matrix(contacts):
-    """Round 0: lock the pool and its call order."""
+def new_matrix(contacts, started_at=None):
+    """Round 0: lock the pool and its call order. started_at (epoch ms) bounds reply/meeting checks."""
     order = call_order(contacts)
     return {
         "version": 1,
         "round": 0,
+        "started_at": started_at,
         "status": STATUS_ACTIVE,
         "kdm_contact_id": None,
         "order": order,
@@ -117,7 +119,7 @@ def latest_call_in_window(calls, start_ms, end_ms):
 
 
 def classify_call(call):
-    # No call in the window counts as MISSED — HubSpot enforces "call everyone"
+    # No call in the window stays MISSED (still in the pool) but gets no email this round
     if call is None:
         return MISSED
     disposition = call.get("disposition")
@@ -129,39 +131,32 @@ def classify_call(call):
     return MISSED
 
 
-def _history_entry(round_no, call, state):
+def _history_entry(round_no, call, state, outcome=None):
     disposition = call.get("disposition") if call else None
     return {
         "round": round_no,
         "call_id": str(call["id"]) if call else None,
-        "outcome": DISPOSITION_LABELS.get(disposition, disposition or "No call"),
+        "outcome": outcome or DISPOSITION_LABELS.get(disposition, disposition or "No call"),
         "kdm_status": call.get("kdm_status") if call else None,
         "connected": disposition in CONNECTED or disposition == CONNECTED_NOT_INTERESTED,
         "state": state,
     }
 
 
-def advance(matrix, round_no, calls_by_contact, window):
-    """Apply round `round_no`'s calls. window = (start_ms, end_ms) of the round's task."""
+def advance(matrix, round_no, calls_by_contact, window, engaged=frozenset(), opted_out=frozenset()):
+    """
+    Apply round `round_no`'s calls. window = (start_ms, end_ms) of the round's task.
+    engaged: contacts who replied or booked a meeting since the sequence started.
+    opted_out: contacts who unsubscribed from email.
+    """
     if round_no != matrix["round"] + 1 or not 1 <= round_no <= TOTAL_ROUNDS:
         raise ValueError(f"cannot apply round {round_no} to a matrix at round {matrix['round']}")
-    if matrix["status"] == STATUS_CLOSED_LOST:
-        raise ValueError("opportunity is closed_lost")
+    if matrix["status"] != STATUS_ACTIVE:
+        raise ValueError(f"opportunity is {matrix['status']}")
 
     m = copy.deepcopy(matrix)
     m["round"] = round_no
     start_ms, end_ms = window
-
-    if m["status"] == STATUS_KDM_FOUND:
-        cid = m["kdm_contact_id"]
-        call = latest_call_in_window(calls_by_contact.get(cid, []), start_ms, end_ms)
-        # Once confirmed, the KDM stays the KDM; only "not interested" ends the sequence
-        state = CLOSED_LOST if classify_call(call) in (CLOSED_LOST, OPTED_OUT) else KDM
-        if state == CLOSED_LOST:
-            m["status"] = STATUS_CLOSED_LOST
-        m["contacts"][cid]["state"] = state
-        m["contacts"][cid]["history"].append(_history_entry(round_no, call, state))
-        return m
 
     decisive = None
     for cid in m["order"]:
@@ -170,13 +165,20 @@ def advance(matrix, round_no, calls_by_contact, window):
             continue
         call = latest_call_in_window(calls_by_contact.get(cid, []), start_ms, end_ms)
         state = classify_call(call)
+        outcome = None
+        # A call result decides first (a reached KDM still ends the sequence); otherwise
+        # an unsubscribe or a reply/meeting takes the contact out of the pool
+        if state == MISSED and cid in opted_out:
+            state, outcome = OPTED_OUT, "Unsubscribed"
+        elif state == MISSED and cid in engaged:
+            state, outcome = ENGAGED, "Replied or booked a meeting"
         contact["state"] = state
-        contact["history"].append(_history_entry(round_no, call, state))
+        contact["history"].append(_history_entry(round_no, call, state, outcome))
         if decisive is None and state in (KDM, CLOSED_LOST):
             decisive = cid
 
     if decisive:
-        # First KDM decision in call order wins; every other live contact is frozen
+        # Reaching the KDM ends the sequence. First KDM in call order wins; everyone else is frozen
         for cid in m["order"]:
             if cid != decisive and m["contacts"][cid]["state"] in LIVE_STATES | {KDM, CLOSED_LOST}:
                 m["contacts"][cid]["state"] = FROZEN
@@ -189,12 +191,35 @@ def advance(matrix, round_no, calls_by_contact, window):
 
 
 def recipients(matrix):
-    """Contacts who get this round's email(s), in call order."""
-    if matrix["status"] == STATUS_CLOSED_LOST:
+    """Contacts who get this round's email(s), in call order. Nobody once the sequence has stopped."""
+    if matrix["status"] != STATUS_ACTIVE:
         return []
-    if matrix["status"] == STATUS_KDM_FOUND:
-        return [matrix["kdm_contact_id"]]
     return [cid for cid in matrix["order"] if matrix["contacts"][cid]["state"] in LIVE_STATES]
+
+
+def _no_call_this_round(matrix, cid):
+    history = matrix["contacts"][cid]["history"]
+    return matrix["round"] >= 1 and bool(history) and history[-1]["round"] == matrix["round"] \
+        and history[-1]["call_id"] is None
+
+
+def uncalled(matrix):
+    """Live contacts the rep didn't call this round — no email for them (it would claim a call)."""
+    return [cid for cid in recipients(matrix) if _no_call_this_round(matrix, cid)]
+
+
+def email_recipients(matrix):
+    """Contacts who actually get this round's email: live and (from round 1) called this round."""
+    skipped = set(uncalled(matrix))
+    return [cid for cid in recipients(matrix) if cid not in skipped]
+
+
+def release_contacts(before, after):
+    """Contacts whose hplmt_active_opportunity_id should be cleared after this round."""
+    if not recipients(after) or after["round"] >= TOTAL_ROUNDS:
+        return list(after["order"])
+    live_after = set(recipients(after))
+    return [cid for cid in recipients(before) if cid not in live_after]
 
 
 def slots_to_clear(before, after):
@@ -212,56 +237,48 @@ def slots_to_clear(before, after):
 def route_b_context(matrix, cid):
     """Scenario input for emails 2/3: recipient state + who else can be referenced."""
     contact = matrix["contacts"][cid]
-    last = contact["history"][-1]
-    others = []
-    if matrix["status"] != STATUS_KDM_FOUND:
-        others = [
-            {"first_name": matrix["contacts"][o]["first_name"], "state": matrix["contacts"][o]["state"]}
-            for o in matrix["order"]
-            if o != cid
-            and matrix["contacts"][o]["state"] in REFERENCEABLE_STATES
-            and matrix["contacts"][o]["first_name"]
-        ]
+    others = [
+        {
+            "first_name": matrix["contacts"][o]["first_name"],
+            "state": matrix["contacts"][o]["state"],
+            # Outcome of the call that set their state — drives how they are referenced
+            "outcome": matrix["contacts"][o]["history"][-1]["outcome"],
+        }
+        for o in matrix["order"]
+        if o != cid
+        and matrix["contacts"][o]["state"] in REFERENCEABLE_STATES
+        and matrix["contacts"][o]["first_name"]
+        and not _no_call_this_round(matrix, o)  # never claim we tried someone we didn't call
+    ]
     return {
         "state": contact["state"],
-        "connected_this_round": last["connected"],
-        "last_outcome": last["outcome"],
+        "last_outcome": contact["history"][-1]["outcome"],
         "others": others,
     }
 
 
 def route_a_context(matrix, cid):
-    """Emails 1/4/5 don't reference anyone; the KDM gets their last outcome as soft context."""
-    contact = matrix["contacts"][cid]
-    is_kdm = contact["state"] == KDM
-    return {
-        "state": contact["state"],
-        "is_kdm": is_kdm,
-        "last_outcome": contact["history"][-1]["outcome"] if is_kdm and contact["history"] else "",
-    }
+    """Emails 1/4/5 don't reference calls or anyone else."""
+    return {"state": matrix["contacts"][cid]["state"]}
 
 
 def next_task_text(matrix, company, job_title, contacts):
     """(title, notes) for the next call task. Empty when there is no next call."""
     next_round = matrix["round"] + 1
-    if matrix["status"] == STATUS_CLOSED_LOST or next_round > TOTAL_ROUNDS:
+    live = recipients(matrix)
+    if not live or next_round > TOTAL_ROUNDS:
         return "", ""
 
-    live = recipients(matrix)
     names = [
         short_name(matrix["contacts"][cid]["first_name"], matrix["contacts"][cid]["last_name"])
         for cid in live
     ]
     head = " · ".join(p for p in [f"Call {next_round} of {TOTAL_ROUNDS}", company, job_title] if p)
-    if matrix["status"] == STATUS_KDM_FOUND:
-        title = f"{head} · KDM: {names[0]}"
-        reminder = "Confirmed KDM. Log the call with Call outcome."
-    else:
-        title = f"{head} · Call in order: {' → '.join(names)}"
-        reminder = (
-            "Call everyone in order unless a KDM is confirmed. "
-            "Log each call with Call outcome and 'KDM on this call?'."
-        )
+    title = f"{head} · Call in order: {' → '.join(names)}"
+    reminder = (
+        "Call everyone in order unless a KDM is confirmed. "
+        "Log each call with Call outcome and 'KDM on this call?'."
+    )
 
     lines = []
     for i, cid in enumerate(live, 1):

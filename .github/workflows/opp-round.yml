@@ -56,6 +56,23 @@ jobs:
           HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
           RUNNER_TEMP: ${{ runner.temp }}
 
+      # A contact with no call logged this round gets no email (it would falsely claim a call)
+      - name: Warn Teams about uncalled contacts
+        if: steps.plan.outputs.uncalled != ''
+        env:
+          UNCALLED: ${{ steps.plan.outputs.uncalled }}
+        run: |
+          curl -s -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"@type\": \"MessageCard\",
+              \"@context\": \"https://schema.org/extensions\",
+              \"summary\": \"Contacts not called this round\",
+              \"themeColor\": \"FFA500\",
+              \"title\": \"Round ${{ steps.plan.outputs.round }} · Opportunity ${OPPORTUNITY_ID}: no call logged\",
+              \"text\": \"No call was logged for ${UNCALLED} in this round's task window, so they were not emailed this round. Please call everyone listed on the task before completing it.\"
+            }"
+
       - name: Upload plan
         if: steps.plan.outputs.skip == 'false'
         uses: actions/upload-artifact@v4

@@ -6,7 +6,7 @@ One HubSpot Opportunity per run → 3 call rounds across its contacts → determ
 
 - **`scripts/build_matrix.py` is pure.** No IO, no HubSpot, no Claude. All matrix behaviour changes go there, with a test in `tests/test_build_matrix.py`.
 - **The pipeline is the only writer of `hpl_call_round`**, and finalize writes it last, in the same update as `hpl_call_matrix`.
-- **A contact's email slot is written only when empty.** Round 0 wipes 2 to 5 and finalize clears dropped contacts. Don't add a code path that overwrites a populated slot: HubSpot re-enrols on "`email_N` is known" and would re-send it.
+- **A contact's email slot is written only when empty.** Round 0 wipes 2 to 5 and finalize clears dropped contacts. Don't add a code path that overwrites a populated slot: HubSpot re-enrols on "`hplmt_email_N` is known" and would re-send it.
 - **Route B facts come from Python** (`scenario_instructions`). The model must never be asked to infer calls, referrals or KDM status itself.
 - Opportunity custom object type: `p5402982_opportunities`.
 - Disposition GUIDs in `build_matrix.py` are portal-specific. If HubSpot call outcomes change, update `DISPOSITION_LABELS` / `CONNECTED`. Any unknown outcome counts as MISSED.
