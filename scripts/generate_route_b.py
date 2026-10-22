@@ -15,13 +15,13 @@ from claude import MODEL
 from utils import write_dlq
 
 WHAT_HAPPENED = {
-    bm.MISSED: "We called this person this round and did not get through.",
-    bm.SPOKE_UNCLEAR: ("We spoke with this person by phone this round (outcome: {outcome}). "
+    bm.MISSED: "We just tried calling this person and did not get through.",
+    bm.SPOKE_UNCLEAR: ("We just spoke with this person by phone (outcome: {outcome}). "
                        "They have not confirmed whether they are the decision maker."),
-    "KDM_CONNECTED": ("We spoke with this person by phone this round (outcome: {outcome}). "
+    "KDM_CONNECTED": ("We just spoke with this person by phone (outcome: {outcome}). "
                       "They are the confirmed decision maker for this role."),
     "KDM_MISSED": ("This person is the confirmed decision maker for this role and we have spoken before. "
-                   "We called again this round and did not get through."),
+                   "We just tried calling again and did not get through."),
 }
 
 OPENERS = {
