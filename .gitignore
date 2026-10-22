@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+*.json.local
+failed_run.json

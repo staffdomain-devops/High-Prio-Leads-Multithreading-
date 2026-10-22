@@ -1,0 +1,87 @@
+name: Route A — Emails 1, 4, 5
+
+# Emails that never reference calls or other contacts.
+# Round 0: Research Agent once, then email_1 per contact. Round 3: email_4 + email_5 per contact.
+
+on:
+  workflow_call:
+    inputs:
+      round:
+        type: string
+        required: true
+      contacts:
+        description: JSON list of contact IDs
+        type: string
+        required: true
+      dry_run:
+        type: string
+        required: false
+        default: "false"
+
+jobs:
+  research:
+    if: inputs.round == '0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+          path: ${{ runner.temp }}
+      - name: Research Agent (once per Opportunity)
+        run: python scripts/research_opportunity.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RUNNER_TEMP: ${{ runner.temp }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: research
+          path: ${{ runner.temp }}/research.json
+          retention-days: 7
+
+  email:
+    needs: research
+    if: always() && (needs.research.result == 'success' || needs.research.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        contact_id: ${{ fromJSON(inputs.contacts) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+          path: ${{ runner.temp }}
+      # Round 3 reads research from hpl_research_payload (inside plan.json) instead
+      - if: inputs.round == '0'
+        uses: actions/download-artifact@v4
+        with:
+          name: research
+          path: ${{ runner.temp }}
+      - name: Generate + write email(s)
+        run: python scripts/generate_route_a.py
+        env:
+          CONTACT_ID: ${{ matrix.contact_id }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RUNNER_TEMP: ${{ runner.temp }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: email-${{ matrix.contact_id }}
+          path: |
+            ${{ runner.temp }}/email_${{ matrix.contact_id }}.json
+            ${{ runner.temp }}/raw_${{ matrix.contact_id }}.txt
+          if-no-files-found: ignore
+          retention-days: 7

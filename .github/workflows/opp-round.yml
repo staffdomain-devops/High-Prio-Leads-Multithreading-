@@ -1,0 +1,163 @@
+name: Opportunity Call Round
+
+# Entry point. HubSpot posts a webhook here (repository_dispatch "opp-round") on
+# call task 1 created and on every call task completed; or run it by hand with
+# an Opportunity ID. The round comes from hpl_call_round on the Opportunity.
+
+on:
+  workflow_dispatch:
+    inputs:
+      opportunity_id:
+        description: HubSpot Opportunity ID
+        required: true
+        type: string
+      task_id:
+        description: Call task ID (blank = latest completed task on the Opportunity)
+        required: false
+        type: string
+      dry_run:
+        description: Run everything but write nothing to HubSpot
+        required: false
+        type: boolean
+        default: false
+  repository_dispatch:
+    types: [opp-round]
+
+# One run per Opportunity at a time — rounds must apply in order
+concurrency:
+  group: opp-${{ github.event.inputs.opportunity_id || github.event.client_payload.opportunity_id }}
+  cancel-in-progress: false
+
+env:
+  OPPORTUNITY_ID: ${{ github.event.inputs.opportunity_id || github.event.client_payload.opportunity_id }}
+  TASK_ID: ${{ github.event.inputs.task_id || github.event.client_payload.task_id }}
+  DRY_RUN: ${{ github.event.inputs.dry_run || github.event.client_payload.dry_run || 'false' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.plan.outputs.skip }}
+      round: ${{ steps.plan.outputs.round }}
+      route: ${{ steps.plan.outputs.route }}
+      contacts: ${{ steps.plan.outputs.contacts }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      # Fetch Opportunity + contacts + calls in the task window, apply the call matrix
+      - name: Plan round
+        id: plan
+        run: python scripts/plan_round.py
+        env:
+          HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
+          RUNNER_TEMP: ${{ runner.temp }}
+
+      - name: Upload plan
+        if: steps.plan.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: ${{ runner.temp }}/plan.json
+          retention-days: 7
+
+      - name: Upload failure record
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-plan
+          path: ${{ runner.temp }}/failed_run.json
+          retention-days: 7
+
+  # Emails 1 (round 0) and 4 + 5 (round 3)
+  route_a:
+    needs: plan
+    if: needs.plan.outputs.route == 'A'
+    uses: ./.github/workflows/route-a.yml
+    with:
+      round: ${{ needs.plan.outputs.round }}
+      contacts: ${{ needs.plan.outputs.contacts }}
+      dry_run: ${{ github.event.inputs.dry_run || github.event.client_payload.dry_run || 'false' }}
+    secrets: inherit
+
+  # Emails 2 (round 1) and 3 (round 2)
+  route_b:
+    needs: plan
+    if: needs.plan.outputs.route == 'B'
+    uses: ./.github/workflows/route-b.yml
+    with:
+      round: ${{ needs.plan.outputs.round }}
+      contacts: ${{ needs.plan.outputs.contacts }}
+      dry_run: ${{ github.event.inputs.dry_run || github.event.client_payload.dry_run || 'false' }}
+    secrets: inherit
+
+  # Clear dropped contacts, then write matrix + next task + hpl_call_round (last)
+  finalize:
+    needs: [plan, route_a, route_b]
+    if: >-
+      always() &&
+      needs.plan.result == 'success' &&
+      needs.plan.outputs.skip == 'false' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Download plan, research and emails
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}
+          merge-multiple: true
+
+      - name: Finalize round
+        run: python scripts/finalize_round.py
+        env:
+          HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
+          RUNNER_TEMP: ${{ runner.temp }}
+
+      - name: Upload round output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round-output-${{ env.OPPORTUNITY_ID }}
+          path: |
+            ${{ runner.temp }}/plan.json
+            ${{ runner.temp }}/research.json
+            ${{ runner.temp }}/email_*.json
+            ${{ runner.temp }}/finalize.json
+            ${{ runner.temp }}/failed_run.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  notify:
+    needs: [plan, route_a, route_b, finalize]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Teams
+        run: |
+          curl -s -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"@type\": \"MessageCard\",
+              \"@context\": \"https://schema.org/extensions\",
+              \"summary\": \"High Prio Leads Multithreading failed\",
+              \"themeColor\": \"FF0000\",
+              \"title\": \"Opportunity call round failed — ${OPPORTUNITY_ID}\",
+              \"sections\": [{
+                \"facts\": [
+                  {\"name\": \"Opportunity\", \"value\": \"${OPPORTUNITY_ID}\"},
+                  {\"name\": \"Round\", \"value\": \"${{ needs.plan.outputs.round || 'unknown' }}\"},
+                  {\"name\": \"Plan / A / B / Finalize\", \"value\": \"${{ needs.plan.result }} / ${{ needs.route_a.result }} / ${{ needs.route_b.result }} / ${{ needs.finalize.result }}\"},
+                  {\"name\": \"Run log\", \"value\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}
+                ]
+              }]
+            }"
