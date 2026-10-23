@@ -1,5 +1,9 @@
 name: Opportunity Call Round
 
+# Label in the Actions list. client_payload.round is display-only (sent by the HubSpot
+# custom code as a string); the pipeline still reads the real round from hpl_call_round.
+run-name: "Opp-Id: ${{ github.event.inputs.opportunity_id || github.event.client_payload.opportunity_id }} | Round ${{ github.event.client_payload.round || 'next' }}"
+
 # Entry point. HubSpot posts a webhook here (repository_dispatch "opp-round") on
 # call task 1 created and on every call task completed; or run it by hand with
 # an Opportunity ID. The round comes from hpl_call_round on the Opportunity.
@@ -57,21 +61,12 @@ jobs:
           RUNNER_TEMP: ${{ runner.temp }}
 
       # A contact with no call logged this round gets no email (it would falsely claim a call)
-      - name: Warn Teams about uncalled contacts
+      - name: Warn about uncalled contacts
         if: steps.plan.outputs.uncalled != ''
         env:
           UNCALLED: ${{ steps.plan.outputs.uncalled }}
         run: |
-          curl -s -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"@type\": \"MessageCard\",
-              \"@context\": \"https://schema.org/extensions\",
-              \"summary\": \"Contacts not called this round\",
-              \"themeColor\": \"FFA500\",
-              \"title\": \"Round ${{ steps.plan.outputs.round }} · Opportunity ${OPPORTUNITY_ID}: no call logged\",
-              \"text\": \"No call was logged for ${UNCALLED} in this round's task window, so they were not emailed this round. Please call everyone listed on the task before completing it.\"
-            }"
+          echo "::warning title=Round ${{ steps.plan.outputs.round }} · Opportunity ${OPPORTUNITY_ID}: no call logged::No call was logged for ${UNCALLED} in this round's task window, so they were not emailed this round."
 
       - name: Upload plan
         if: steps.plan.outputs.skip == 'false'
@@ -153,28 +148,3 @@ jobs:
             ${{ runner.temp }}/failed_run.json
           if-no-files-found: ignore
           retention-days: 7
-
-  notify:
-    needs: [plan, route_a, route_b, finalize]
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify Teams
-        run: |
-          curl -s -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"@type\": \"MessageCard\",
-              \"@context\": \"https://schema.org/extensions\",
-              \"summary\": \"High Prio Leads Multithreading failed\",
-              \"themeColor\": \"FF0000\",
-              \"title\": \"Opportunity call round failed — ${OPPORTUNITY_ID}\",
-              \"sections\": [{
-                \"facts\": [
-                  {\"name\": \"Opportunity\", \"value\": \"${OPPORTUNITY_ID}\"},
-                  {\"name\": \"Round\", \"value\": \"${{ needs.plan.outputs.round || 'unknown' }}\"},
-                  {\"name\": \"Plan / A / B / Finalize\", \"value\": \"${{ needs.plan.result }} / ${{ needs.route_a.result }} / ${{ needs.route_b.result }} / ${{ needs.finalize.result }}\"},
-                  {\"name\": \"Run log\", \"value\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}
-                ]
-              }]
-            }"

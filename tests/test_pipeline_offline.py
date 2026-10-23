@@ -40,7 +40,7 @@ class FakeHubSpot:
                 B: {"firstname": "Ben", "lastname": "Baker", "contact_icp_rating": "Prime (MM)", "kdm_rank": "2"},
                 C: {"firstname": "Cara", "lastname": "Cole", "contact_icp_rating": "Core (MM)", "kdm_rank": "1"},
             },
-            "tasks": {}, "emails": {}, "meetings": {},
+            "tasks": {},
             "calls": {},
         }
         self.assoc = {(hs.OPPORTUNITY, OPP, "contacts"): [A, B, C], (hs.OPPORTUNITY, OPP, "companies"): ["500"],
@@ -70,11 +70,6 @@ class FakeHubSpot:
                                           "hs_task_subject": subject}
         self.assoc[(hs.OPPORTUNITY, OPP, "tasks")].append(task_id)
         return task_id
-
-    def add_reply(self, contact_id):
-        email_id = f"e{len(self.objects['emails'])}"
-        self.objects["emails"][email_id] = {"hs_email_direction": "INCOMING_EMAIL", "hs_timestamp": "2099-01-01T00:00:00Z"}
-        self.assoc.setdefault(("contacts", contact_id, "emails"), []).append(email_id)
 
     def add_call(self, contact_id, task_id, disposition, kdm_status=None):
         task = self.objects["tasks"][task_id]
@@ -227,20 +222,19 @@ def test_round_0_excludes_unsubscribed_and_contacts_in_another_sequence(env):
     assert "hplmt_email_1" not in contact(fake_hs, A) and "hplmt_email_1" not in contact(fake_hs, C)
 
 
-def test_reply_or_unsubscribe_stops_that_contact(env):
+def test_unsubscribe_stops_that_contact(env):
     fake_hs, fake_claude, _, _ = env
     run_round(env)
-    fake_hs.add_reply(A)
     contact(fake_hs, C)["hs_email_optout"] = "true"
     t1 = fake_hs.add_task("t1", 21)
     for cid in (A, B, C):
         fake_hs.add_call(cid, t1, NO_ANSWER)
     plan = run_round(env, t1)
     states = {cid: plan["matrix_after"]["contacts"][cid]["state"] for cid in (A, B, C)}
-    assert states == {A: "ENGAGED", B: "MISSED", C: "OPTED_OUT"}
-    assert plan["recipients"] == [B]
-    assert "REFERENCE LINE: none" in fake_claude.prompts[B]  # neither A nor C is mentioned
-    assert contact(fake_hs, A)["hplmt_email_2"] == "" and contact(fake_hs, A)["hplmt_active_opportunity_id"] == ""
+    assert states == {A: "MISSED", B: "MISSED", C: "OPTED_OUT"}
+    assert plan["recipients"] == [A, B]
+    assert "Cara" not in fake_claude.prompts[A] and "Cara" not in fake_claude.prompts[B]  # C is never mentioned
+    assert contact(fake_hs, C)["hplmt_email_2"] == "" and contact(fake_hs, C)["hplmt_active_opportunity_id"] == ""
 
 
 def test_uncalled_contact_gets_no_email_and_is_not_referenced(env):

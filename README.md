@@ -22,7 +22,7 @@ one contact per run. This repo is one Opportunity per run, fanning out to its co
 - **The round comes from `hpl_call_round`** on the Opportunity: this run processes `hpl_call_round + 1`, with empty meaning round 0. The pipeline is the only writer of that property, and it writes it last. A failed run therefore never advances the round, and re-completing the task retries it.
 - **A round's calls** are, for each contact, the latest call whose activity date falls inside that task's **created → completed** window.
 - **HubSpot sends.** The pipeline only writes `hplmt_subject_N` / `hplmt_email_N`. HubSpot's send workflows enrol on "`hplmt_email_N` is known", with re-enrolment on. A dropped contact has their remaining slots cleared, so they never enrol.
-- **"Call everyone" is the rep's job.** HubSpot can't block a task from being completed. A pool contact with no call in the window gets **no email that round**, and the run posts a Teams warning naming them.
+- **"Call everyone" is the rep's job.** HubSpot can't block a task from being completed. A pool contact with no call in the window gets **no email that round**, and the run shows a warning naming them.
 
 Each of these makes a run a no-op:
 - the sequence has finished or stopped (round 3 done, KDM reached, closed lost, or nobody left)
@@ -58,11 +58,11 @@ The pool is every contact associated with the Opportunity at round 0, **except**
 | Connected Not Interested | Yes | `CLOSED_LOST` | **The whole sequence stops.** |
 | (the KDM was reached) | n/a | `FROZEN` | Stops. Never referenced. |
 
-Besides calls, these also take a contact out of the pool, and none of them is ever mentioned in other people's emails:
-- **A reply or a booked meeting** (an incoming email or a meeting created since round 0) → `ENGAGED`.
-- **An unsubscribe** (`hs_email_optout`) → `OPTED_OUT`.
+Besides calls, **an unsubscribe** (`hs_email_optout`) takes a contact out of the pool (`OPTED_OUT`), and they're never mentioned in other people's emails.
 
-**No call logged:** a pool contact with no call in the round's task window stays in the pool but **gets no email that round**, because the email would falsely claim a call. They're also left out of everyone else's references, they stay on the next call task, and the run posts a Teams warning naming them.
+**Replies are handled in HubSpot, not here.** If a contact replies mid-sequence, the whole sequence exits on the HubSpot side, so the pipeline never reads email or meeting records (and its token doesn't need email scopes).
+
+**No call logged:** a pool contact with no call in the round's task window stays in the pool but **gets no email that round**, because the email would falsely claim a call. They're also left out of everyone else's references, they stay on the next call task, and the run shows a warning naming them.
 
 Rules:
 - When the sequence stops, every remaining slot is cleared, the next task title is empty, and later webhooks are no-ops.
@@ -128,7 +128,6 @@ opp-round.yml  (repository_dispatch "opp-round" | workflow_dispatch)
   route_b ─┘ route-b.yml        generate_route_b.py × contact
   finalize   finalize_round.py  clear dropped contacts' slots, then write hpl_call_matrix,
                                 next task title/notes, research (round 0), hpl_call_round (last)
-  notify     Teams card on any failure
 tests.yml    pytest on every push
 ```
 
@@ -198,7 +197,7 @@ Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `resea
 
 1. **Webhook on call task 1 created**, then on **each call task completed**, for tasks associated with the Opportunity. This is the POST described above.
 2. **Send workflows**, one per email: enrolment trigger "`hplmt_email_N` is known", **re-enrolment on**.
-3. **"Call everyone" check:** the rep must log a call for every contact in the task notes unless a KDM is confirmed. If someone is skipped, the pipeline leaves them out of that round's emails and posts a Teams warning.
+3. **"Call everyone" check:** the rep must log a call for every contact in the task notes unless a KDM is confirmed. If someone is skipped, the pipeline leaves them out of that round's emails and shows a warning on the run.
 4. **Next call task:** create it with title `{{hpl_next_call_task_title}}` and notes `{{hpl_next_call_task_notes}}`. Skip creation when the title is empty (sequence finished, or closed lost).
 
 ### GitHub secrets
@@ -207,7 +206,6 @@ Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `resea
 |---|---|
 | `HUBSPOT_API_KEY` | Private App token. Read: contacts, companies, calls, tasks, Opportunity custom object. Write: contacts, Opportunity custom object. |
 | `ANTHROPIC_API_KEY` | Claude |
-| `TEAMS_WEBHOOK_URL` | Failure notifications |
 
 ---
 

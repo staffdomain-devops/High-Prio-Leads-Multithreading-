@@ -33,7 +33,7 @@ The pipeline only **writes**: emails onto contacts, and the matrix, round and ne
 | Object | **Opportunity** |
 | Enrolment trigger | *Your eligibility criteria* (e.g. the existing `create_task_1 = yes` / high-priority rule) **AND** `HPL Call Round` **is unknown** **AND** `Status` = Open |
 | Re-enrolment | Off |
-| Action 1 | **Custom code** (Node 20). Secrets: `GITHUB_TOKEN`, `HUBSPOT_TOKEN`. Input field: `hs_object_id`. Code: `hubspot/dispatch_round.js`. |
+| Action 1 | **Custom code** (Node 20). Secrets: `github_dispatch_token`, `sales_crm_api_token`. Input field: `hs_object_id`. Code: `hubspot/dispatch_round.js`. |
 
 The "`HPL Call Round` is unknown" condition makes W1 fire once per Opportunity, ever. Don't also let your existing workflow create "Task 1" for these Opportunities: W2 creates the call tasks here.
 
@@ -75,7 +75,7 @@ There's no delay or check needed. The pipeline only writes `hplmt_email_N` for c
 
 ## "Call everyone" check (rep process)
 
-A contact with **no call logged** in the task window gets **no email that round**, isn't mentioned in other people's emails, and is named in a Teams warning. The rep should log a call for every contact listed in the task notes before completing the task. The only exception is once a KDM is confirmed, when the rest don't need calling.
+A contact with **no call logged** in the task window gets **no email that round**, isn't mentioned in other people's emails, and is named in a warning on the GitHub run. The rep should log a call for every contact listed in the task notes before completing the task. The only exception is once a KDM is confirmed, when the rest don't need calling.
 
 HubSpot can't block a task from being completed. The pipeline-side guard makes sure a skipped contact never gets an email that claims a call.
 
@@ -83,8 +83,10 @@ HubSpot can't block a task from being completed. The pipeline-side guard makes s
 
 ## Setup checklist
 
-- [ ] GitHub fine-grained token, this repo only, **Contents: read & write** → HubSpot secret `GITHUB_TOKEN`
-- [ ] HubSpot private app token with read on **tasks** and the **Opportunity custom object** → HubSpot secret `HUBSPOT_TOKEN`
-- [ ] W1, W2, W3 and W4 to W8 built as above
+- [ ] GitHub fine-grained token, this repo only, **Contents: read & write** → HubSpot secret `github_dispatch_token`, then tick it on the custom code action in W1 and W3
+- [ ] HubSpot token: reuses the existing secret `sales_crm_api_token` (needs read on **tasks** and the **Opportunity custom object**)
+- [x] W1 `1907103601`, W2 `1907097010`, W3 `1907099200` created in HubSpot (**off**) on 2026-10-22
+- [ ] Delete the stray placeholder copy of W3 `1907086760`, created during setup
+- [ ] W4 to W8 (send emails) built
 - [ ] Your existing task-1 / sequence workflows exclude Opportunities that have `HPL Call Round` known
 - [ ] Test on Opportunity `64510640916` (or a fresh test Opportunity), watching the GitHub Actions tab

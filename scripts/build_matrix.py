@@ -47,7 +47,6 @@ KDM           = "KDM"            # connected, confirmed KDM — the whole sequen
 OPTED_OUT     = "OPTED_OUT"      # not interested, not the KDM — stops, never referenced
 FROZEN        = "FROZEN"         # stopped because the KDM was reached
 CLOSED_LOST   = "CLOSED_LOST"    # the KDM said not interested — the whole sequence stops
-ENGAGED       = "ENGAGED"        # replied by email or booked a meeting — stops, never referenced
 
 LIVE_STATES = {PENDING, MISSED}
 REFERENCEABLE_STATES = {MISSED, SPOKE_UNCLEAR, NOT_KDM}
@@ -91,7 +90,7 @@ def short_name(first, last):
 
 
 def new_matrix(contacts, started_at=None):
-    """Round 0: lock the pool and its call order. started_at (epoch ms) bounds reply/meeting checks."""
+    """Round 0: lock the pool and its call order. started_at = epoch ms the sequence started."""
     order = call_order(contacts)
     return {
         "version": 1,
@@ -143,11 +142,11 @@ def _history_entry(round_no, call, state, outcome=None):
     }
 
 
-def advance(matrix, round_no, calls_by_contact, window, engaged=frozenset(), opted_out=frozenset()):
+def advance(matrix, round_no, calls_by_contact, window, opted_out=frozenset()):
     """
     Apply round `round_no`'s calls. window = (start_ms, end_ms) of the round's task.
-    engaged: contacts who replied or booked a meeting since the sequence started.
     opted_out: contacts who unsubscribed from email.
+    Replies are handled outside the pipeline (a reply exits the whole sequence in HubSpot).
     """
     if round_no != matrix["round"] + 1 or not 1 <= round_no <= TOTAL_ROUNDS:
         raise ValueError(f"cannot apply round {round_no} to a matrix at round {matrix['round']}")
@@ -167,11 +166,9 @@ def advance(matrix, round_no, calls_by_contact, window, engaged=frozenset(), opt
         state = classify_call(call)
         outcome = None
         # A call result decides first (a reached KDM still ends the sequence); otherwise
-        # an unsubscribe or a reply/meeting takes the contact out of the pool
+        # an unsubscribe takes the contact out of the pool
         if state == MISSED and cid in opted_out:
             state, outcome = OPTED_OUT, "Unsubscribed"
-        elif state == MISSED and cid in engaged:
-            state, outcome = ENGAGED, "Replied or booked a meeting"
         contact["state"] = state
         contact["history"].append(_history_entry(round_no, call, state, outcome))
         if decisive is None and state in (KDM, CLOSED_LOST):

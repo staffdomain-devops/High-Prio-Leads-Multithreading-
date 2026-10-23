@@ -6,7 +6,7 @@ Round = hpl_call_round + 1 (empty -> round 0). Round 1-3 calls are the latest
 call per contact inside the call task's created -> completed window.
 
 Outputs (GITHUB_OUTPUT): skip, round, route (A|B|none), contacts (JSON list),
-uncalled (names of live contacts with no call this round — Teams warning).
+uncalled (names of live contacts with no call this round — run warning).
 """
 
 import json
@@ -80,22 +80,6 @@ def fetch_calls(contact_id):
     ]
 
 
-def engaged_since(contact_id, since_ms):
-    """True if the contact replied by email or a meeting was booked since the sequence started."""
-    email_ids = hs.associated_ids("contacts", contact_id, "emails")
-    if email_ids:
-        emails = hs.batch_read("emails", email_ids, ["hs_email_direction", "hs_timestamp"])
-        if any(p.get("hs_email_direction") == "INCOMING_EMAIL" and (parse_ts(p.get("hs_timestamp")) or 0) >= since_ms
-               for p in emails.values()):
-            return True
-    meeting_ids = hs.associated_ids("contacts", contact_id, "meetings")
-    if meeting_ids:
-        meetings = hs.batch_read("meetings", meeting_ids, ["hs_createdate"])
-        if any((parse_ts(p.get("hs_createdate")) or 0) >= since_ms for p in meetings.values()):
-            return True
-    return False
-
-
 def eligible_pool(opp_id, contacts):
     """Round 0: drop unsubscribed contacts and contacts already in another Opportunity's sequence."""
     pool = {}
@@ -163,10 +147,8 @@ def main():
             contacts = hs.batch_read("contacts", before["order"], CONTACT_PROPS)
             live = bm.recipients(before)
             calls_by_contact = {cid: fetch_calls(cid) for cid in live}
-            since = before.get("started_at") or window[0]
-            engaged = {cid for cid in live if engaged_since(cid, since)}
             opted_out = {cid for cid in live if contacts.get(cid, {}).get("hs_email_optout") == "true"}
-            after = bm.advance(before, round_no, calls_by_contact, window, engaged, opted_out)
+            after = bm.advance(before, round_no, calls_by_contact, window, opted_out)
 
         company_ids = hs.associated_ids(hs.OPPORTUNITY, opp_id, "companies")
         company = hs.get_object("companies", company_ids[0], COMPANY_PROPS) if company_ids else {}
