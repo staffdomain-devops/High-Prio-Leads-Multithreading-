@@ -45,6 +45,7 @@ class FakeHubSpot:
         }
         self.assoc = {(hs.OPPORTUNITY, OPP, "contacts"): [A, B, C], (hs.OPPORTUNITY, OPP, "companies"): ["500"],
                       (hs.OPPORTUNITY, OPP, "tasks"): []}
+        self.notes = {}
 
     def get_object(self, t, i, props):
         return {p: self.objects[t].get(str(i), {}).get(p) for p in props}
@@ -61,6 +62,11 @@ class FakeHubSpot:
     def batch_update(self, t, updates):
         for i, props in updates.items():
             self.update_object(t, i, props)
+
+    def create_note(self, t, i, body_html):
+        note_id = f"n{len(self.notes)}"
+        self.notes[note_id] = {"object": (t, str(i)), "body": body_html}
+        return note_id
 
     def add_task(self, task_id, day, subject="Call 1 of 3 · City Beach · Assistant Buyer", task_type="CALL"):
         """Task created at 00:00 and completed at 08:00 on 2026-10-<day>."""
@@ -88,7 +94,8 @@ class FakeClaude:
         assert "{{" not in prompt, f"unreplaced token in prompt: {re.findall(r'{{[^}]+}}', prompt)}"
         if "RESOURCE LIBRARY" in prompt:
             res = {"id": "X", "url": "https://x", "one_line": "Proof point https://x"}
-            return {"company_summary": "Retailer.", "job_description_insights": "POs.",
+            return {"company_summary": "Retailer.", "job_summary": ["Raise purchase orders"],
+                    "job_description_insights": "POs.",
                     "buyer_frames": {cid: f"frame {cid}" for cid in re.findall(r"Contact ID (\d+)", prompt)},
                     "resources": {k: res for k in research_opportunity.REQUIRED_RESOURCES}}
         cid = raw_name.removeprefix("raw_").removesuffix(".txt")
@@ -100,7 +107,7 @@ class FakeClaude:
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     fake_hs, fake_claude = FakeHubSpot(), FakeClaude()
-    for name in ("get_object", "batch_read", "associated_ids", "update_object", "batch_update"):
+    for name in ("get_object", "batch_read", "associated_ids", "update_object", "batch_update", "create_note"):
         monkeypatch.setattr(hs, name, getattr(fake_hs, name))
     monkeypatch.setattr(emailgen, "generate_json", fake_claude)
     monkeypatch.setattr(research_opportunity, "generate_json", fake_claude)
@@ -149,6 +156,12 @@ def test_full_sequence_pool_then_kdm(env):
     assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
     assert contact(fake_hs, A)["hplmt_email_4"] == ""
     assert opp["hpl_next_call_task_title"].endswith("Call in order: Alice A → Ben B → Cara C")
+    # Research brief pinned on the Opportunity; buyer frames in the first task's notes
+    assert list(fake_hs.notes) == [opp["hs_pinned_engagement_id"]]
+    note = fake_hs.notes[opp["hs_pinned_engagement_id"]]
+    assert note["object"] == (hs.OPPORTUNITY, OPP)
+    assert "<li>Raise purchase orders</li>" in note["body"] and f"frame {B}" in note["body"]
+    assert f"Angle: frame {A}" in opp["hpl_next_call_task_notes"]
 
     # Round 1 — nobody connects; each email references the other two
     t1 = fake_hs.add_task("t1", 21)
@@ -175,6 +188,9 @@ def test_full_sequence_pool_then_kdm(env):
     assert contact(fake_hs, A)["hplmt_email_3"] == "" and contact(fake_hs, A)["hplmt_email_5"] == ""
     assert contact(fake_hs, A)["hplmt_email_2"]  # already-sent slots are left alone
     assert opp["hpl_next_call_task_title"] == "Call 3 of 3 · City Beach · Assistant Buyer · Call in order: Ben B → Cara C"
+    assert f"Angle: frame {B}" in opp["hpl_next_call_task_notes"]  # later rounds reuse the stored frames
+    assert f"frame {A}" not in opp["hpl_next_call_task_notes"]
+    assert len(fake_hs.notes) == 1  # the brief is only written at round 0
 
     # Round 3 — C is reached and is the KDM: nobody gets emails 4 + 5
     t3 = fake_hs.add_task("t3", 25)
@@ -288,3 +304,5 @@ def test_dry_run_writes_nothing(env):
     assert "hpl_call_round" not in fake_hs.objects[hs.OPPORTUNITY][OPP]
     assert "hplmt_email_1" not in contact(fake_hs, A)
     assert json.loads((tmp / f"email_{A}.json").read_text(encoding="utf-8"))["written"] is False
+    assert not fake_hs.notes
+    assert "THE ROLE" in json.loads((tmp / "finalize.json").read_text(encoding="utf-8"))["pinned_note_html"]

@@ -4,7 +4,7 @@ Research Agent — round 0 only, once per Opportunity.
 Reads plan.json, calls Claude once to summarise the company + job, select the 4
 shared resources, and write a buyer frame per contact. Writes research.json;
 finalize_round.py stores it on the Opportunity as hpl_research_payload so
-rounds 1-3 reuse it.
+rounds 1-3 reuse it, and builds the pinned research brief note from it.
 """
 
 import os
@@ -29,10 +29,12 @@ REQUIRED_RESOURCES = ["case_study", "youtube_video", "website_resource_email2", 
 
 
 def validate(payload, contact_ids):
-    missing = [k for k in ["company_summary", "job_description_insights", "buyer_frames", "resources"]
+    missing = [k for k in ["company_summary", "job_summary", "job_description_insights", "buyer_frames", "resources"]
                if k not in payload]
     if missing:
         return f"missing top-level keys: {missing}"
+    if not isinstance(payload["job_summary"], list) or not payload["job_summary"]:
+        return "job_summary must be a non-empty list of bullets"
     for slot in REQUIRED_RESOURCES:
         res = payload["resources"].get(slot) or {}
         if not all(res.get(f) for f in ("id", "url", "one_line")):

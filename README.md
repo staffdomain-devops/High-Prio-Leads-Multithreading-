@@ -116,6 +116,16 @@ Research runs **once per Opportunity at round 0** (`research_opportunity.py`):
 
 Each contact's `hplmt_research_summary` is written at round 0.
 
+**Research brief (pinned note).** At round 0, finalize also creates a note on the Opportunity and pins it (`hs_pinned_engagement_id`), so the rep sees it when Call 1 of 3 comes up. A pinned note already on the record is unpinned, but not deleted. The note is built by `scripts/brief.py` (pure, tested in `tests/test_brief.py`), in this order:
+1. **The role:** ICP rating, score, job type, the job ad link, the `job_summary` bullets, and the `job_description_insights`.
+2. **The company:** industry, size, address, phone, website, `company_summary`, and LinkedIn links (page, other open jobs, employees, Sales Nav employees).
+3. **Who to call:** contacts in call order, each with title, ICP, phone, LinkedIn, Sales Nav, email, and their buyer frame.
+4. **What the emails use:** the case study and video links.
+
+Empty fields are left out. A dry run puts the note HTML in `finalize.json` (`pinned_note_html`) instead of posting it.
+
+**Task notes** include each contact's buyer frame (`Angle:`) and links (LinkedIn, Sales Nav, email) under their line. At round 0, the plan runs before research exists, so finalize rebuilds the first task's notes once the frames are available.
+
 ---
 
 ## Pipeline layout

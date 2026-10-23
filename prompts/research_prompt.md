@@ -126,7 +126,7 @@ Must be DIFFERENT from the resource used in Email 2. Choose from:
 
 ## YOUR TASK
 
-1. Analyse the company and job posting
+1. Analyse the company and job posting, and summarise the role in 3-5 factual bullets (`job_summary`) — a sales rep reads these before calling
 2. Apply the resource selection rules above
 3. For each selected resource, write a short natural one-liner (15-25 words) that references what the similar company achieved — this will be used verbatim in the emails. Write as a proof point or story reference, NOT as "here is a case study". Do not use the word "case study".
 4. Write one buyer frame per contact, keyed by their contact ID
@@ -140,6 +140,7 @@ Return exactly this JSON structure:
 
 {
   "company_summary": "2-3 sentence description of what this company does and what stage they appear to be at",
+  "job_summary": ["3-5 short bullets summarising the role for a sales rep: the main responsibilities, then the key requirements (experience, tools, location or hours if stated). Facts from the job ad only, no analysis."],
   "job_description_insights": "2-3 specific requirements or responsibilities from the job description that reveal their current pressure or gap",
   "buyer_frames": {
     "<contact ID>": "One sentence identifying this contact's likely frame of reference: Founder/CEO (business impact focus) OR Ops/HR leader (process/people focus) — and their primary concern"

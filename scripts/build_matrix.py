@@ -259,8 +259,11 @@ def route_a_context(matrix, cid):
     return {"state": matrix["contacts"][cid]["state"]}
 
 
-def next_task_text(matrix, company, job_title, contacts):
-    """(title, notes) for the next call task. Empty when there is no next call."""
+def next_task_text(matrix, company, job_title, contacts, buyer_frames=None):
+    """(title, notes) for the next call task. Empty when there is no next call.
+
+    buyer_frames ({contact ID: frame} from the research payload) adds an "Angle:" line per contact.
+    """
     next_round = matrix["round"] + 1
     live = recipients(matrix)
     if not live or next_round > TOTAL_ROUNDS:
@@ -286,5 +289,13 @@ def next_task_text(matrix, company, job_title, contacts):
         phone = props.get("phone") or props.get("mobilephone") or "no phone"
         last = entry["history"][-1]["outcome"] if entry["history"] else "not called yet"
         lines.append(f"{i}. {full_name}{role} · {phone} · last outcome: {last}")
+        frame = (buyer_frames or {}).get(cid)
+        if frame:
+            lines.append(f"   Angle: {frame}")
+        links = [f"{label}: {props[key]}" for label, key in
+                 (("LinkedIn", "linkedin_url"), ("Sales Nav", "sales_navigator_url"), ("Email", "email"))
+                 if props.get(key)]
+        if links:
+            lines.append(f"   {' · '.join(links)}")
     lines += ["", reminder]
     return title, "\n".join(lines)

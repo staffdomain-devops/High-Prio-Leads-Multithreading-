@@ -21,14 +21,19 @@ from utils import parse_ts, set_output, write_dlq, write_json
 
 OPP_PROPS = [
     "job_title", "job_title___proper", "job_description", "job_post_link", "job_board",
-    "vertical", "company_name", "final_score", "status",
+    "vertical", "company_name", "final_score", "status", "opportunity_icp_rating", "job_type",
     "hpl_call_round", "hpl_call_matrix", "hpl_research_payload",
 ]
 CONTACT_PROPS = [
     "firstname", "lastname", "email", "jobtitle", "phone", "mobilephone",
     "contact_icp_rating", "kdm_rank", "hs_email_optout", "hplmt_active_opportunity_id",
+    "linkedin_url", "sales_navigator_url",
 ]
-COMPANY_PROPS = ["name", "industry", "numberofemployees", "city", "country", "website", "description"]
+COMPANY_PROPS = [
+    "name", "industry", "numberofemployees", "website", "description", "phone",
+    "address", "address2", "city", "state", "zip", "country",
+    "linkedin_company_page", "linkedin_job_search_url", "linkedin_employees_url", "sales_navigator_employees_url",
+]
 TASK_PROPS = ["hs_createdate", "hs_task_completion_date", "hs_task_status", "hs_task_subject", "hs_task_type"]
 CALL_PROPS = ["hs_call_disposition", "hpl_call_kdm_status", "hs_timestamp", "hs_createdate"]
 
@@ -159,7 +164,10 @@ def main():
         context_fn = bm.route_b_context if route == "B" else bm.route_a_context
         company_name = company.get("name") or opp.get("company_name") or ""
         job_title = opp.get("job_title___proper") or opp.get("job_title") or ""
-        title, notes = bm.next_task_text(after, company_name, job_title, contacts)
+        research = json.loads(opp["hpl_research_payload"]) if opp.get("hpl_research_payload") else None
+        # Round 0 has no research yet; finalize rebuilds the notes with buyer frames once it exists
+        title, notes = bm.next_task_text(after, company_name, job_title, contacts,
+                                         (research or {}).get("buyer_frames"))
 
         plan = {
             "opportunity_id": opp_id,
@@ -176,8 +184,8 @@ def main():
             "contexts": {cid: context_fn(after, cid) for cid in recipients},
             "clear_slots": bm.slots_to_clear(before, after) if before else {},
             "release": bm.release_contacts(before, after) if before else [],
-            "next_task": {"title": title, "notes": notes},
-            "research": json.loads(opp["hpl_research_payload"]) if opp.get("hpl_research_payload") else None,
+            "next_task": {"title": title, "notes": notes, "company_name": company_name, "job_title": job_title},
+            "research": research,
         }
         write_json("plan.json", plan)
 

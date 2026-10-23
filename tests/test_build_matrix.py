@@ -218,3 +218,13 @@ def test_task_text_lists_only_contacts_still_to_reach():
     title, notes = bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS)
     assert title == "Call 2 of 3 · City Beach · Assistant Buyer · Call in order: Ben B → Cara C"
     assert notes.splitlines()[0] == "1. Ben Baker · no phone · last outcome: No answer"
+
+
+def test_task_text_adds_buyer_frame_and_links():
+    contacts = {**CONTACTS, A: {**CONTACTS[A], "linkedin_url": "https://linkedin.com/in/alice", "email": "a@cb.com"}}
+    m = bm.new_matrix(CONTACTS)
+    _, notes = bm.next_task_text(m, "City Beach", "Assistant Buyer", contacts, {A: "Cares about data security."})
+    lines = notes.splitlines()
+    assert lines[1] == "   Angle: Cares about data security."
+    assert lines[2] == "   LinkedIn: https://linkedin.com/in/alice · Email: a@cb.com"
+    assert lines[3].startswith("2. Ben Baker")  # no frame, no links: nothing extra

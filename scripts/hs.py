@@ -1,6 +1,7 @@
 """Thin HubSpot REST client (CRM v3 objects + v4 associations) with retry."""
 
 import os
+from datetime import datetime, timezone
 
 import requests
 from tenacity import retry, retry_if_exception
@@ -61,6 +62,17 @@ def associated_ids(from_type, from_id, to_type):
 
 def update_object(object_type, object_id, properties):
     return _request("PATCH", f"/crm/v3/objects/{object_type}/{object_id}", json={"properties": properties})
+
+
+def create_note(object_type, object_id, body_html):
+    """Create a note on a record (default association). Returns the note ID."""
+    note = _request("POST", "/crm/v3/objects/notes", json={"properties": {
+        "hs_note_body": body_html,
+        "hs_timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+    }})
+    note_id = str(note["id"])
+    _request("PUT", f"/crm/v4/objects/notes/{note_id}/associations/default/{object_type}/{object_id}")
+    return note_id
 
 
 def batch_update(object_type, updates):
