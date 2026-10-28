@@ -306,3 +306,38 @@ def test_dry_run_writes_nothing(env):
     assert json.loads((tmp / f"email_{A}.json").read_text(encoding="utf-8"))["written"] is False
     assert not fake_hs.notes
     assert "THE ROLE" in json.loads((tmp / "finalize.json").read_text(encoding="utf-8"))["pinned_note_html"]
+
+
+# --- prompt sets ----------------------------------------------------------------
+
+def test_default_prompt_set_does_not_name_other_contacts(env):
+    fake_hs, fake_claude, tmp, mp = env
+    run_round(env)
+    assert "I should be speaking to" not in fake_claude.prompts[A]
+    assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "default"
+
+
+def test_jp_prompt_set_names_other_contacts_in_email_1(env):
+    fake_hs, fake_claude, tmp, mp = env
+    mp.setenv("PROMPT_VERSION", "jp")
+    run_round(env)
+    assert "not sure if it's you, Ben or Cara I should be speaking to" in fake_claude.prompts[A]
+    assert "not sure if it's you, Alice or Cara I should be speaking to" in fake_claude.prompts[B]
+    assert "not sure if it's you, Alice or Ben I should be speaking to" in fake_claude.prompts[C]
+    assert "Under 150 words" in fake_claude.prompts[A]
+    assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "jp"
+    assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
+
+
+def test_jp_prompt_set_is_self_contained():
+    default = Path(__file__).parent.parent / "prompts"
+    jp = default / "jp"
+    expected = {p.relative_to(default) for p in default.rglob("*.md") if "jp" not in p.parts}
+    assert {p.relative_to(jp) for p in jp.rglob("*.md")} - {Path("README.md")} == expected
+
+
+def test_unknown_prompt_set_fails_loudly(env, monkeypatch):
+    import utils
+    monkeypatch.setenv("PROMPT_VERSION", "nope")
+    with pytest.raises(RuntimeError, match="PROMPT_VERSION"):
+        utils.prompts_dir()

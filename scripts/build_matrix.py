@@ -255,8 +255,30 @@ def route_b_context(matrix, cid):
 
 
 def route_a_context(matrix, cid):
-    """Emails 1/4/5 don't reference calls or anyone else."""
-    return {"state": matrix["contacts"][cid]["state"]}
+    """Emails 1/4/5 never reference calls. Email 1 names the other people in the pool
+    ("not sure if it's you, Ben or Cara"); emails 4/5 ignore `others`."""
+    others = [
+        matrix["contacts"][o]["first_name"]
+        for o in matrix["order"]
+        if o != cid and matrix["contacts"][o]["state"] in LIVE_STATES and matrix["contacts"][o]["first_name"]
+    ]
+    return {"state": matrix["contacts"][cid]["state"], "others": others}
+
+
+MAX_NAMED_OTHERS = 2
+
+
+def who_clause(others):
+    """'you' / 'you or Ben' / 'you, Ben or Cara' / 'you, Ben, Cara or someone else there'.
+    Fills the email 1 opener. Caps at MAX_NAMED_OTHERS names so it never reads as a roll call.
+    Accepts route A `others` (first names) or route B `others` (dicts with first_name)."""
+    names = [o["first_name"] if isinstance(o, dict) else o for o in others]
+    names = [n for n in names if n]
+    if not names:
+        return "you"
+    named = names[:MAX_NAMED_OTHERS]
+    last = "someone else there" if len(names) > MAX_NAMED_OTHERS else named.pop()
+    return ", ".join(["you"] + named) + f" or {last}"
 
 
 def next_task_text(matrix, company, job_title, contacts, buyer_frames=None):

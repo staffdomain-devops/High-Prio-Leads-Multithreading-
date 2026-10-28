@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from pathlib import Path
 from datetime import datetime, timezone
 
 from tenacity import (
@@ -9,6 +10,25 @@ from tenacity import (
     stop_after_delay,
     wait_random_exponential,
 )
+
+
+PROMPTS_ROOT = Path(__file__).parent.parent / "prompts"
+
+
+def prompt_version():
+    return os.environ.get("PROMPT_VERSION", "").strip()
+
+
+def prompts_dir():
+    """prompts/ by default; prompts/<PROMPT_VERSION>/ when a prompt set is selected (e.g. "jp").
+    Each set is self-contained: every prompt file is read from the one directory."""
+    version = prompt_version()
+    if not version:
+        return PROMPTS_ROOT
+    path = PROMPTS_ROOT / version
+    if not path.is_dir():
+        raise RuntimeError(f"PROMPT_VERSION={version!r} but {path} does not exist")
+    return path
 
 
 def runner_temp():

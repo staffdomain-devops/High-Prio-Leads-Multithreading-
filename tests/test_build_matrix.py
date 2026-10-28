@@ -192,7 +192,7 @@ def test_three_rounds_all_missed_then_email_4_5_for_everyone():
         m = run_round(m, r, {A: call(r, NO_ANSWER), B: call(r, NO_ANSWER), C: call(r, NO_ANSWER)})
     assert m["round"] == 3
     assert bm.recipients(m) == [A, B, C]
-    assert bm.route_a_context(m, A) == {"state": bm.MISSED}
+    assert bm.route_a_context(m, A) == {"state": bm.MISSED, "others": ["Ben", "Cara"]}
     assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
 
 
@@ -228,3 +228,28 @@ def test_task_text_adds_buyer_frame_and_links():
     assert lines[1] == "   Angle: Cares about data security."
     assert lines[2] == "   LinkedIn: https://linkedin.com/in/alice · Email: a@cb.com"
     assert lines[3].startswith("2. Ben Baker")  # no frame, no links: nothing extra
+
+
+# --- email 1 opener: who else is in the pool -----------------------------------
+
+def test_route_a_context_names_other_live_contacts_in_call_order():
+    m = bm.new_matrix(CONTACTS)
+    assert bm.route_a_context(m, A)["others"] == ["Ben", "Cara"]
+    assert bm.route_a_context(m, B)["others"] == ["Alice", "Cara"]
+    assert bm.route_a_context(m, C)["others"] == ["Alice", "Ben"]
+
+
+def test_route_a_context_drops_contacts_who_connected():
+    m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, NO_ANSWER), B: call(1, CONNECTED, "No"), C: call(1, NO_ANSWER)})
+    assert bm.route_a_context(m, A)["others"] == ["Cara"]
+
+
+def test_who_clause():
+    assert bm.who_clause([]) == "you"
+    assert bm.who_clause(["Ben"]) == "you or Ben"
+    assert bm.who_clause(["Ben", "Cara"]) == "you, Ben or Cara"
+    assert bm.who_clause(["Ben", "Cara", "Dan"]) == "you, Ben, Cara or someone else there"
+    assert bm.who_clause(["Ben", "Cara", "Dan", "Eve"]) == "you, Ben, Cara or someone else there"
+    assert bm.who_clause(["", "Ben"]) == "you or Ben"
+    # route B contexts carry dicts
+    assert bm.who_clause([{"first_name": "Ben", "state": bm.MISSED, "outcome": "No answer"}]) == "you or Ben"

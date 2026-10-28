@@ -9,14 +9,12 @@ rewrites — and re-sends — an email that already went out.
 
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 
 import build_matrix as bm
 import hs
 from claude import generate_json
-from utils import clean_text, is_dry_run, read_json, safe_truncate, substitute_tokens, temp_path, write_json
-
-PROMPTS = Path(__file__).parent.parent / "prompts"
+from utils import (clean_text, is_dry_run, prompt_version, prompts_dir, read_json, safe_truncate,
+                   substitute_tokens, temp_path, write_json)
 MAX_TOKENS = 4096
 
 SYSTEM = (
@@ -48,6 +46,8 @@ def tokens_for(plan, research, cid):
         "contact.company": company.get("name", "") or opp.get("company_name", "") or "",
         "contact.industry": company.get("industry", "") or opp.get("vertical", "") or "",
         "contact.website": company.get("website", "") or "",
+        # Email 1 opener: "not sure if it's you, Ben or Cara I should be speaking to"
+        "contact.who_clause": bm.who_clause((plan.get("contexts", {}).get(cid) or {}).get("others", [])),
         "opportunity.job_title": opp.get("job_title___proper") or opp.get("job_title", "") or "",
         "opportunity.job_post_link": opp.get("job_post_link", "") or "",
         "opportunity.job_description": opp.get("job_description", "") or "",
@@ -64,7 +64,7 @@ def tokens_for(plan, research, cid):
 
 
 def render(name, tokens):
-    return substitute_tokens((PROMPTS / name).read_text(encoding="utf-8"), tokens)
+    return substitute_tokens((prompts_dir() / name).read_text(encoding="utf-8"), tokens)
 
 
 def output_format(slots):
@@ -120,8 +120,8 @@ def write_contact(plan, research, cid, emails):
         properties["hplmt_active_opportunity_id"] = plan["opportunity_id"]
     properties["hplmt_generated_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    record = {"contact_id": cid, "round": round_no, "emails": emails, "properties": properties,
-              "written": not is_dry_run()}
+    record = {"contact_id": cid, "round": round_no, "prompt_version": prompt_version() or "default",
+              "emails": emails, "properties": properties, "written": not is_dry_run()}
     write_json(f"email_{cid}.json", record)
 
     if is_dry_run():

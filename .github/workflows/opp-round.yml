@@ -24,6 +24,11 @@ on:
         required: false
         type: boolean
         default: false
+      prompt_version:
+        description: "Prompt set to use: blank = prompts/ (default), jp = prompts/jp/"
+        required: false
+        type: string
+        default: ""
   repository_dispatch:
     types: [opp-round]
 
@@ -36,6 +41,7 @@ env:
   OPPORTUNITY_ID: ${{ github.event.inputs.opportunity_id || github.event.client_payload.opportunity_id }}
   TASK_ID: ${{ github.event.inputs.task_id || github.event.client_payload.task_id }}
   DRY_RUN: ${{ github.event.inputs.dry_run || github.event.client_payload.dry_run || 'false' }}
+  PROMPT_VERSION: ${{ github.event.inputs.prompt_version || github.event.client_payload.prompt_version || '' }}
 
 jobs:
   plan:
@@ -93,6 +99,7 @@ jobs:
       round: ${{ needs.plan.outputs.round }}
       contacts: ${{ needs.plan.outputs.contacts }}
       dry_run: ${{ github.event.inputs.dry_run || github.event.client_payload.dry_run || 'false' }}
+      prompt_version: ${{ github.event.inputs.prompt_version || github.event.client_payload.prompt_version || '' }}
     secrets: inherit
 
   # Emails 2 (round 1) and 3 (round 2)
@@ -104,6 +111,7 @@ jobs:
       round: ${{ needs.plan.outputs.round }}
       contacts: ${{ needs.plan.outputs.contacts }}
       dry_run: ${{ github.event.inputs.dry_run || github.event.client_payload.dry_run || 'false' }}
+      prompt_version: ${{ github.event.inputs.prompt_version || github.event.client_payload.prompt_version || '' }}
     secrets: inherit
 
   # Clear dropped contacts, then write matrix + next task + hpl_call_round (last)

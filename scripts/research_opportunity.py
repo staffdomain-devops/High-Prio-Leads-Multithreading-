@@ -10,12 +10,9 @@ rounds 1-3 reuse it, and builds the pinned research brief note from it.
 import os
 import sys
 from datetime import date
-from pathlib import Path
 
 from claude import generate_json, MODEL
-from utils import read_json, substitute_tokens, write_dlq, write_json
-
-RESEARCH_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "research_prompt.md"
+from utils import prompt_version, prompts_dir, read_json, substitute_tokens, write_dlq, write_json
 MAX_TOKENS = 4096
 
 SYSTEM = (
@@ -78,8 +75,9 @@ def main():
         "company.description": company.get("description", ""),
         "campaign.current_date": date.today().isoformat(),
     }
-    prompt = substitute_tokens(RESEARCH_PROMPT_PATH.read_text(encoding="utf-8"), tokens)
-    print(f"Research prompt: {len(prompt):,} chars | {len(plan['matrix_after']['order'])} contacts")
+    prompt = substitute_tokens((prompts_dir() / "research_prompt.md").read_text(encoding="utf-8"), tokens)
+    print(f"Research prompt: {len(prompt):,} chars | {len(plan['matrix_after']['order'])} contacts "
+          f"| prompt set: {prompt_version() or 'default'}")
     print(f"Calling {MODEL} for research...")
 
     try:

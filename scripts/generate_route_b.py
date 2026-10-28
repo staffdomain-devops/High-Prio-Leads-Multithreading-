@@ -13,7 +13,7 @@ import sys
 import build_matrix as bm
 import emailgen
 from claude import MODEL
-from utils import write_dlq
+from utils import prompt_version, write_dlq
 
 WHAT_HAPPENED = "We just tried calling this person and did not get through."
 
@@ -96,7 +96,7 @@ def main():
 
     print(f"Route B · round {round_no} · contact {cid} ({tokens['contact.first_name']}) · email {email_no}")
     print(tokens["scenario"])
-    print(f"Calling {MODEL}...")
+    print(f"Calling {MODEL} (prompt set: {prompt_version() or 'default'})...")
     try:
         emails = emailgen.generate(prompt, slots, f"raw_{cid}.txt")
         emailgen.write_contact(plan, research, cid, emails)

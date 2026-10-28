@@ -10,7 +10,7 @@ import sys
 import build_matrix as bm
 import emailgen
 from claude import MODEL
-from utils import write_dlq
+from utils import prompt_version, write_dlq
 
 
 def main():
@@ -32,7 +32,7 @@ def main():
     prompt = emailgen.render("route_a_prompt.md", tokens)
 
     print(f"Route A · round {round_no} · contact {cid} ({tokens['contact.first_name']}) · emails {slots}")
-    print(f"Calling {MODEL}...")
+    print(f"Calling {MODEL} (prompt set: {prompt_version() or 'default'})...")
     try:
         emails = emailgen.generate(prompt, slots, f"raw_{cid}.txt")
         emailgen.write_contact(plan, research, cid, emails)

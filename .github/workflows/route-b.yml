@@ -17,6 +17,11 @@ on:
         type: string
         required: false
         default: "false"
+      prompt_version:
+        description: Prompt set (blank = prompts/, jp = prompts/jp/)
+        type: string
+        required: false
+        default: ""
 
 jobs:
   email:
@@ -41,6 +46,7 @@ jobs:
         env:
           CONTACT_ID: ${{ matrix.contact_id }}
           DRY_RUN: ${{ inputs.dry_run }}
+          PROMPT_VERSION: ${{ inputs.prompt_version }}
           HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RUNNER_TEMP: ${{ runner.temp }}
