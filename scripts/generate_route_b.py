@@ -38,38 +38,87 @@ CONNECTED_FACTS = {
 }
 NOT_KDM_SUFFIX = " and {name} mentioned this probably sits with someone else"
 
+# The fixed wording of the call scenario, per prompt set. The default set is the
+# constants above, unchanged. A prompt set without its own entry uses the default.
+DEFAULT_TEXT = {
+    "what_happened": WHAT_HAPPENED,
+    "openers": OPENERS,
+    "close": CLOSE,
+    "missed_fact": MISSED_FACT,
+    "connected_facts": CONNECTED_FACTS,
+    "not_kdm_suffix": NOT_KDM_SUFFIX,
+    "reference_none": "REFERENCE LINE: none. Do not mention anyone else at the company.",
+    "reference_intro": (
+        "REFERENCE LINE: add exactly one natural sentence about who else at {company} "
+        "you have been trying to reach, using only these facts:\n{facts}\n"
+        "  First names only, no job titles. Refer to these people by name only: no he, she, his or her. "
+        "Do not list them; weave them into one sentence."
+    ),
+}
 
-def reference_fact(other):
+JP_TEXT = {
+    "what_happened": WHAT_HAPPENED,
+    "openers": {
+        2: 'Open with exactly: "Just tried giving you a quick call and didn\'t catch you."',
+        # Email 3 keeps the default opener until it is reworked
+        3: OPENERS[3],
+    },
+    "close": 'End with exactly: "Are you the right person to chat to about this? If not, who should I be talking to?"',
+    "missed_fact": "you tried {name} too and didn't get through",
+    "connected_facts": {
+        "Connected": "you had a quick chat with {name}",
+        "Connected Interested": "you spoke with {name}, who was keen to hear more",
+        "Connected Call Back later": "you spoke briefly with {name}, who asked you to call back another time",
+    },
+    "not_kdm_suffix": " and {name} reckons it probably sits with someone else",
+    "reference_none": (
+        "REFERENCE LINE: none. Straight after the opener, say in a few words that you're not sure "
+        "if they're the right person for this. Do not mention anyone else at the company."
+    ),
+    "reference_intro": (
+        "REFERENCE LINE: straight after the opener, one short sentence about who else you tried, "
+        "using only these facts:\n{facts}\n"
+        "  First names only, no job titles, no he, she, his or her. Do not name the company. "
+        "Finish the sentence with the point that you're still not sure who the right person is."
+    ),
+}
+
+ROUTE_B_TEXT = {"": DEFAULT_TEXT, "jp": JP_TEXT}
+
+
+def route_b_text():
+    """The fixed scenario wording for the selected prompt set."""
+    return ROUTE_B_TEXT.get(prompt_version(), DEFAULT_TEXT)
+
+
+def reference_fact(other, text=DEFAULT_TEXT):
     name = other["first_name"]
     if other["state"] == bm.MISSED:
-        return MISSED_FACT.format(name=name)
-    fact = CONNECTED_FACTS.get(other["outcome"], CONNECTED_FACTS["Connected"]).format(name=name)
+        return text["missed_fact"].format(name=name)
+    facts = text["connected_facts"]
+    fact = facts.get(other["outcome"], facts["Connected"]).format(name=name)
     if other["state"] == bm.NOT_KDM:
-        fact += NOT_KDM_SUFFIX.format(name=name)
+        fact += text["not_kdm_suffix"].format(name=name)
     return fact
 
 
-def reference_line(others, company):
+def reference_line(others, company, text=DEFAULT_TEXT):
     if not others:
-        return "REFERENCE LINE: none. Do not mention anyone else at the company."
-    facts = "\n".join(f"  - {reference_fact(o)}" for o in others)
-    return (
-        f"REFERENCE LINE: add exactly one natural sentence about who else at {company or 'the company'} "
-        f"you have been trying to reach, using only these facts:\n{facts}\n"
-        "  First names only, no job titles. Refer to these people by name only: no he, she, his or her. "
-        "Do not list them; weave them into one sentence."
-    )
+        return text["reference_none"]
+    facts = "\n".join(f"  - {reference_fact(o, text)}" for o in others)
+    return text["reference_intro"].format(company=company or "the company", facts=facts)
 
 
-def scenario_instructions(email_no, ctx, company):
-    """Fixed instructions for one recipient. Pure — unit-tested."""
+def scenario_instructions(email_no, ctx, company, text=None):
+    """Fixed instructions for one recipient. Pure — unit-tested. `text` defaults to the selected prompt set's."""
     if ctx["state"] != bm.MISSED:
         raise ValueError(f"route B only emails MISSED contacts, got {ctx['state']}")
+    text = text or route_b_text()
     return "\n\n".join([
-        "WHAT HAPPENED: " + WHAT_HAPPENED,
-        "OPENER: " + OPENERS[email_no],
-        reference_line(ctx["others"], company),
-        "CLOSE: " + CLOSE,
+        "WHAT HAPPENED: " + text["what_happened"],
+        "OPENER: " + text["openers"][email_no],
+        reference_line(ctx["others"], company, text),
+        "CLOSE: " + text["close"],
     ])
 
 

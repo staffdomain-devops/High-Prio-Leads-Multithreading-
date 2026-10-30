@@ -351,3 +351,22 @@ def test_role_location_prefers_the_ad_then_the_crm_company():
     assert emailgen.role_location({}, {"city": "Brisbane", "state": "QLD"}) == "Brisbane"
     assert emailgen.role_location({}, {"state": "QLD"}) == "QLD"
     assert emailgen.role_location({}, {}) == ""
+
+
+def test_jp_prompt_set_round_1_uses_jp_route_b_wording(env):
+    fake_hs, fake_claude, tmp, mp = env
+    mp.setenv("PROMPT_VERSION", "jp")
+    run_round(env)
+    t1 = fake_hs.add_task("t1", 21)
+    for cid in (A, B, C):
+        fake_hs.add_call(cid, t1, NO_ANSWER)
+    plan = run_round(env, t1)
+    assert plan["route"] == "B"
+    prompt = fake_claude.prompts[A]
+    assert "Just tried giving you a quick call and didn't catch you." in prompt
+    assert "you tried Ben too and didn't get through" in prompt and "you tried Cara too" in prompt
+    assert "If not, who should I be talking to?" in prompt
+    assert "Quick version of why I'm chasing:" in prompt
+    assert "Under 130 words" in prompt
+    assert "To be fair" not in prompt
+    assert contact(fake_hs, A)["hplmt_email_2"] == f"Body 2 for {A}"

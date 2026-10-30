@@ -6,7 +6,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 import build_matrix as bm  # noqa: E402
-from generate_route_b import scenario_instructions  # noqa: E402
+from generate_route_b import DEFAULT_TEXT, JP_TEXT, scenario_instructions  # noqa: E402
 
 
 def ctx(state=bm.MISSED, others=()):
@@ -48,3 +48,33 @@ def test_email_3_opener_and_no_references():
 def test_connected_contacts_never_get_route_b(state):
     with pytest.raises(ValueError):
         scenario_instructions(2, ctx(state), "City Beach")
+
+
+# --- JP prompt set wording -----------------------------------------------------
+
+def test_jp_email_2_wording():
+    text = scenario_instructions(2, ctx(others=[
+        other("Ben", bm.MISSED, "No answer"),
+        other("Cara", bm.NOT_KDM, "Connected"),
+    ]), "Coastal Threads", text=JP_TEXT)
+    assert '"Just tried giving you a quick call and didn\'t catch you."' in text
+    assert "you tried Ben too and didn't get through" in text
+    assert "you had a quick chat with Cara and Cara reckons it probably sits with someone else" in text
+    assert "still not sure who the right person is" in text
+    assert "Do not name the company" in text
+    assert '"Are you the right person to chat to about this? If not, who should I be talking to?"' in text
+    assert "To be fair" not in text
+
+
+def test_jp_email_2_nobody_else_to_mention():
+    text = scenario_instructions(2, ctx(), "Coastal Threads", text=JP_TEXT)
+    assert "REFERENCE LINE: none" in text
+    assert "not sure if they're the right person" in text
+
+
+def test_jp_email_3_still_uses_default_opener():
+    assert "barking up the wrong tree" in scenario_instructions(3, ctx(), "X", text=JP_TEXT)
+
+
+def test_default_text_is_the_module_constants():
+    assert scenario_instructions(2, ctx(), "X") == scenario_instructions(2, ctx(), "X", text=DEFAULT_TEXT)
