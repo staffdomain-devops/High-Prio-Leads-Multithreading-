@@ -8,7 +8,7 @@ Source material for building outbound and nurture emails. Each section is a set 
 
 Built from 665 closed-won deals (Oct 2024 to Oct 2026): HubSpot calls, rep emails, Chorus transcripts, staffdomain.com and a competitor review.
 
-**House savings line: "up to 70%" less than hiring locally.** Use this figure everywhere. Do not quote 50%, 75% or role-by-role percentages in campaigns.
+**House savings line: "on average around 70%" less than hiring locally.** (JP, 30 Oct 2026; supersedes the earlier "up to 70%".) Use this figure everywhere. Do not quote 50%, 75% or role-by-role percentages in campaigns.
 
 ---
 
@@ -20,11 +20,11 @@ Built from 665 closed-won deals (Oct 2024 to Oct 2026): HubSpot calls, rep email
 - Staff work only for your business. They are not shared, pooled or rotated across clients.
 
 **The one-liner**
-- Skilled offshore professionals who work only for you, for up to 70% less than hiring locally, with zero risk until you hire.
+- Skilled offshore professionals who work only for you, for on average around 70% less than hiring locally, with zero risk until you hire.
 
 **The two classics (still use them, just don't lead with them alone)**
 - Hire in weeks, not months.
-- Save up to 70% compared with hiring locally.
+- Save on average around 70% compared with hiring locally.
 
 ---
 
@@ -199,7 +199,7 @@ Use these to stand out. Never name a competitor.
 | "What about Fair Work and legal risk?" | We're the employer of record. You contract with our Australian entity, so no offshore employment liability. |
 | "Staff will just leave." | Our turnover fell 46% last year, staff must give 60 days' notice, and if anyone leaves in their first three months we replace them free. |
 | "Remote relationships fizzle out." | Hire five or more and we fly one of your team to Manila for a week to meet them. |
-| "It's still too expensive." | Up to 70% less than local, with salary, benefits, equipment, HR and IT included. Work-from-home options lower it further. |
+| "It's still too expensive." | On average around 70% less than local, with salary, benefits, equipment, HR and IT included. Work-from-home options lower it further. |
 
 ---
 
@@ -228,7 +228,7 @@ Line for specialist roles:
 
 | Item | Figure |
 |---|---|
-| Savings vs local hire | Up to 70% |
+| Savings vs local hire | On average around 70% |
 | Average time to hire (specialised roles) | Under 24 days (2024 to 2025) |
 | First CVs | 3 to 5 working days after briefing |
 | Replacement guarantee | Free, if anyone leaves or doesn't work out in their first three months (resignations included) |

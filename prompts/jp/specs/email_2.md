@@ -12,7 +12,7 @@ Order that works (but write it your way):
 3. The proof point, led in naturally ("True story:" is how JP does it), word for word.
 4. Ask whether they're the right person and, if not, who you should be talking to. Follow the CALL SCENARIO's CLOSE.
 
-Can, if it fits the person and the words are from the material: the selling point picked for this person, or the savings line ("up to 70%" is the only figure allowed). One of these at most, and only if the email stays under 140 words.
+Can, if it fits the person and the words are from the material: the selling point picked for this person, or the savings line ("on average around 70%" is the only figure allowed). One of these at most, and only if the email stays under 140 words.
 
 Never: "offshoring", "outsourcing", a second link, a second recruiter line, judging their workload, any call or conversation the CALL SCENARIO doesn't give you.
 

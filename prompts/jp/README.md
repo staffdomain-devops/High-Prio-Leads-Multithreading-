@@ -10,9 +10,9 @@ The JP set separates **facts** from **voice**. Facts are fixed: who was called a
 |---|---|
 | `voice.md` | How JP writes: beliefs about these emails, register, two signed-off emails as examples, rejected lines with reasons. Pulled into every JP prompt via `{{voice}}` in `base.md`. |
 | `specs/email_1.md` | Before any call. A question, not a pitch. Under 90 words. Knows who else is on the list (`{{contact.who_clause}}`), where the role is based, and the ad. Nothing about Staff Domain, no company name, no claim of an earlier call. |
-| `specs/email_2.md` | After a missed call. Who else was tried (facts from the CALL SCENARIO), the recruiter line once, what we are grounded in their ad, the proof point word for word as the only link, ask who the right person is. Under 140 words. May use the person's selling point or "up to 70%", one at most. |
+| `specs/email_2.md` | After a missed call. Who else was tried (facts from the CALL SCENARIO), the recruiter line once, what we are grounded in their ad, the proof point word for word as the only link, ask who the right person is. Under 140 words. May use the person's selling point or "on average around 70%", one at most. |
 | `specs/email_3.md` | After a second missed call. Short nudge, under 80 words, no link. The angle is how we recruit (300 to 500 applicants screened, best three or four sent, CVs in 3 to 5 days, tests before you see anyone). No cost figures. Easy out. |
-| `selling_points.md` | JP's selling-points library (30 Oct 2026), model-facing copy. Research agent picks one line per contact (`{{research.selling_point}}`). House savings line "up to 70%". Replacement guarantee: first three months, resignations included. |
+| `selling_points.md` | JP's selling-points library (30 Oct 2026), model-facing copy. Research agent picks one line per contact (`{{research.selling_point}}`). House savings line "on average around 70%". Replacement guarantee: first three months, resignations included. |
 | `research_prompt.md` | Gets the selling points library and returns one chosen line per contact. Resource one-liners written like you'd say them to a mate. |
 | `base.md` | Pulls in `voice.md`, shows the role's location and the chosen selling point, hard rules. |
 

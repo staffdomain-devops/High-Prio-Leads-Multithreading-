@@ -141,7 +141,7 @@ Must be DIFFERENT from the resource used in Email 2. Choose from:
    - Bad: "Liqui Moly's lean two-person team managing multi-million dollar operations got offshore operations, reporting and admin support from us"
    - Never use "case study", "offshore", "offshoring", "outsourcing", "from us" or "achieved". End with the URL and nothing after it.
 4. Write one buyer frame per contact, keyed by their contact ID
-5. Pick one selling point per contact from the SELLING POINTS LIBRARY: the single short line that best answers what this person, in their role, would worry about (a CIO: security; a founder: risk reversal or growth; HR or ops: people who stay, managed support; finance: transparent pricing). Copy the line word for word. Never pick a pricing figure from section 15.
+5. Pick one selling point per contact from the SELLING POINTS LIBRARY: the single short line that best answers what this person, in their role, would worry about (a CIO: security; a founder: risk reversal or growth; HR or ops: people who stay, managed support; finance: transparent pricing). Weigh the company's size too: under about 30 staff, lean to recruitment quality and risk reversal; larger, lean to security, the legal employer point and scalability. Copy the line word for word. Never pick a pricing figure from section 15.
 6. Return the JSON payload below
 
 ---
