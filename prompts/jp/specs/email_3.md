@@ -1,14 +1,14 @@
-### EMAIL 3 — Follow-up after call round 2, short burst
-Target length: Under 100 words — strictly
-Tone: Casual, direct, conversational. Like a quick text message turned into an email.
+### EMAIL 3 — After call 2: the short nudge
+Target length: Under 70 words — strictly
+Tone: Casual, direct. A two-line text message that happens to be an email. No pitch, no link.
 
 Rules:
-- Open exactly as the CALL SCENARIO's OPENER instruction says
-- Follow immediately with: "Is saving tens of thousands of dollars each year on staffing costs something that would even be worth a conversation for you?"
-- If the CALL SCENARIO gives a REFERENCE LINE, place it straight after that question
-- Reference the role and one specific requirement or responsibility from the job description
-- Soft CTA — invite a reply
-- End as the CALL SCENARIO's CLOSE instruction says
-- NO resource link in this email — keep it under 100 words
+- Paragraph 1: open exactly as the CALL SCENARIO's OPENER instruction says, then follow the CALL SCENARIO's REFERENCE LINE instruction.
+- Paragraph 2 is exactly: "Honest question: is getting [one piece of work from the ad, in the ad's own words] off someone's plate even worth a ten-minute chat, or should I leave it there?" Pick the piece of work that fits this person's buyer frame.
+- Paragraph 3 starts with exactly "Happy either way, just let me know." then ends exactly as the CALL SCENARIO's CLOSE instruction says.
+- Nothing about Staff Domain, no savings claim, no link, no proof point.
+- Never describe their workload as heavy, a lot, or a problem.
+- No sign-off: the system adds the signature. Three short paragraphs.
+- Never claim any call or conversation the CALL SCENARIO doesn't give you.
 
-Subject line: Short, casual, no pressure.
+Subject line: exactly "Second try".

@@ -7,8 +7,12 @@ What's different:
 | File | Change |
 |---|---|
 | `specs/email_1.md` | One question, under 90 words. Opener names the other people in the pool ("not sure if it's you, Ben or Cara I should be asking", `{{contact.who_clause}}`) and where the role is based (`{{opportunity.location_clause}}`, from the ad's city/state or the CRM company city). One specific positive comment on something the ad says. Then "How are you going finding someone for it?" and a casual close. Nothing about Staff Domain: no company name, no link, no savings, no disclaimer. |
-| `specs/email_2.md` | Under 130 words. Opener "Just tried giving you a quick call and didn't catch you", then one sentence on who else you tried, ending "so I'm still not sure who the right person is". "Quick version of why I'm chasing:" paragraph says what we are (2-3 specifics from the ad, works only for them, saves tens of thousands a year, "Not a recruitment agency, not a BPO."). Case study one-liner is the only link. Close: "Are you the right person to chat to about this? If not, who should I be talking to?" The fixed opener, facts and close live in `JP_TEXT` in `scripts/generate_route_b.py`. |
+| `specs/email_2.md` | Under 140 words. "Just tried giving you a quick call and didn't catch you", who else you tried, "so I'm still not 100% sure who the right person is for this one". "Quick FYI, I'm not a recruiter, and we're not an agency or a BPO", what we do in one sentence with 1-2 pieces of work from the ad, "They just sit in one of our offices rather than yours", "Usually saves tens of thousands a year". "True story:" plus the case study one-liner as the only link. Close: "If I'm barking up the wrong tree and should be talking to someone else, just let me know and I'll follow them up." |
+| `specs/email_3.md` | Under 70 words, no link. "Tried you again just now, still no luck." plus who else ("Cara too."). "Honest question: is getting [work from the ad] off someone's plate even worth a ten-minute chat, or should I leave it there?" "Happy either way, just let me know. And if it's someone else's call, point me at them and I'll stop bugging you." |
+
+The fixed Route B wording (openers, reference facts, closes) for emails 2 and 3 lives in `JP_TEXT` in `scripts/generate_route_b.py`.
+
 | `base.md` | Voice rules: casual Aussie, no sales-speak, pitch to the buyer frame, no "Hi Alice" in the body, disclaimer only when the spec asks. Adds the role's location to the prospect details. |
 | `research_prompt.md` | Resource one-liners written like you'd say them to a mate, with a good and a bad example. No "case study", "offshore", "from us" or "achieved". |
 
-Emails 3, 4 and 5 and the route prompts are unchanged for now.
+Emails 4 and 5 are unchanged for now.

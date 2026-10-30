@@ -365,8 +365,23 @@ def test_jp_prompt_set_round_1_uses_jp_route_b_wording(env):
     prompt = fake_claude.prompts[A]
     assert "Just tried giving you a quick call and didn't catch you." in prompt
     assert "you tried Ben too and didn't get through" in prompt and "you tried Cara too" in prompt
-    assert "If not, who should I be talking to?" in prompt
-    assert "Quick version of why I'm chasing:" in prompt
-    assert "Under 130 words" in prompt
+    assert "If I'm barking up the wrong tree and should be talking to someone else" in prompt
+    assert "Quick FYI, I'm not a recruiter" in prompt and "True story:" in prompt
+    assert "Under 140 words" in prompt
     assert "To be fair" not in prompt
     assert contact(fake_hs, A)["hplmt_email_2"] == f"Body 2 for {A}"
+
+    # Round 2: Ben connects (not the KDM); Alice and Cara get the short nudge
+    t2 = fake_hs.add_task("t2", 23)
+    fake_hs.add_call(A, t2, NO_ANSWER)
+    fake_hs.add_call(B, t2, CONNECTED, "No")
+    fake_hs.add_call(C, t2, NO_ANSWER)
+    plan = run_round(env, t2)
+    assert plan["recipients"] == [A, C]
+    prompt = fake_claude.prompts[A]
+    assert "Tried you again just now, still no luck." in prompt
+    assert "you had a quick chat with Ben and Ben reckons it probably sits with someone else" in prompt
+    assert "you tried Cara too" in prompt
+    assert "Honest question:" in prompt and "Second try" in prompt
+    assert "point me at them and I'll stop bugging you" in prompt
+    assert "barking up the wrong tree here" not in prompt

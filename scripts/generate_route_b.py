@@ -60,10 +60,13 @@ JP_TEXT = {
     "what_happened": WHAT_HAPPENED,
     "openers": {
         2: 'Open with exactly: "Just tried giving you a quick call and didn\'t catch you."',
-        # Email 3 keeps the default opener until it is reworked
-        3: OPENERS[3],
+        3: 'Open with exactly: "Tried you again just now, still no luck."',
     },
-    "close": 'End with exactly: "Are you the right person to chat to about this? If not, who should I be talking to?"',
+    "close": {
+        2: ('End with exactly: "If I\'m barking up the wrong tree and should be talking to someone else, '
+            'just let me know and I\'ll follow them up."'),
+        3: 'End with exactly: "And if it\'s someone else\'s call, point me at them and I\'ll stop bugging you."',
+    },
     "missed_fact": "you tried {name} too and didn't get through",
     "connected_facts": {
         "Connected": "you had a quick chat with {name}",
@@ -71,16 +74,21 @@ JP_TEXT = {
         "Connected Call Back later": "you spoke briefly with {name}, who asked you to call back another time",
     },
     "not_kdm_suffix": " and {name} reckons it probably sits with someone else",
-    "reference_none": (
-        "REFERENCE LINE: none. Straight after the opener, say in a few words that you're not sure "
-        "if they're the right person for this. Do not mention anyone else at the company."
-    ),
-    "reference_intro": (
-        "REFERENCE LINE: straight after the opener, one short sentence about who else you tried, "
-        "using only these facts:\n{facts}\n"
-        "  First names only, no job titles, no he, she, his or her. Do not name the company. "
-        "Finish the sentence with the point that you're still not sure who the right person is."
-    ),
+    "reference_none": {
+        2: ("REFERENCE LINE: none. Straight after the opener, finish the paragraph with exactly: "
+            "\"Still not 100% sure who the right person is for this one.\" Do not mention anyone else at the company."),
+        3: "REFERENCE LINE: none. Do not mention anyone else at the company.",
+    },
+    "reference_intro": {
+        2: ("REFERENCE LINE: straight after the opener, one short sentence about who else you tried, "
+            "using only these facts:\n{facts}\n"
+            "  First names only, no job titles, no he, she, his or her. Do not name the company. "
+            "Finish the sentence with exactly: \"so I'm still not 100% sure who the right person is for this one.\""),
+        3: ("REFERENCE LINE: straight after the opener, a few words about who else you tried, "
+            "using only these facts:\n{facts}\n"
+            "  As short as it can be (\"Cara too.\" is fine when they were also missed). "
+            "First names only, no job titles, no he, she, his or her. Do not name the company."),
+    },
 }
 
 ROUTE_B_TEXT = {"": DEFAULT_TEXT, "jp": JP_TEXT}
@@ -102,11 +110,16 @@ def reference_fact(other, text=DEFAULT_TEXT):
     return fact
 
 
-def reference_line(others, company, text=DEFAULT_TEXT):
+def _for_email(entry, email_no):
+    """A text entry is either one string for every email, or a dict keyed by email number."""
+    return entry[email_no] if isinstance(entry, dict) else entry
+
+
+def reference_line(others, company, text=DEFAULT_TEXT, email_no=2):
     if not others:
-        return text["reference_none"]
+        return _for_email(text["reference_none"], email_no)
     facts = "\n".join(f"  - {reference_fact(o, text)}" for o in others)
-    return text["reference_intro"].format(company=company or "the company", facts=facts)
+    return _for_email(text["reference_intro"], email_no).format(company=company or "the company", facts=facts)
 
 
 def scenario_instructions(email_no, ctx, company, text=None):
@@ -117,8 +130,8 @@ def scenario_instructions(email_no, ctx, company, text=None):
     return "\n\n".join([
         "WHAT HAPPENED: " + text["what_happened"],
         "OPENER: " + text["openers"][email_no],
-        reference_line(ctx["others"], company, text),
-        "CLOSE: " + text["close"],
+        reference_line(ctx["others"], company, text, email_no),
+        "CLOSE: " + _for_email(text["close"], email_no),
     ])
 
 

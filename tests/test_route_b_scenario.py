@@ -60,21 +60,28 @@ def test_jp_email_2_wording():
     assert '"Just tried giving you a quick call and didn\'t catch you."' in text
     assert "you tried Ben too and didn't get through" in text
     assert "you had a quick chat with Cara and Cara reckons it probably sits with someone else" in text
-    assert "still not sure who the right person is" in text
+    assert "so I'm still not 100% sure who the right person is for this one." in text
     assert "Do not name the company" in text
-    assert '"Are you the right person to chat to about this? If not, who should I be talking to?"' in text
+    assert "If I'm barking up the wrong tree and should be talking to someone else" in text
     assert "To be fair" not in text
 
 
 def test_jp_email_2_nobody_else_to_mention():
     text = scenario_instructions(2, ctx(), "Coastal Threads", text=JP_TEXT)
     assert "REFERENCE LINE: none" in text
-    assert "not sure if they're the right person" in text
+    assert "Still not 100% sure who the right person is for this one." in text
 
 
-def test_jp_email_3_still_uses_default_opener():
-    assert "barking up the wrong tree" in scenario_instructions(3, ctx(), "X", text=JP_TEXT)
+def test_jp_email_3_wording():
+    text = scenario_instructions(3, ctx(others=[other("Cara", bm.MISSED, "No answer")]), "Coastal Threads", text=JP_TEXT)
+    assert '"Tried you again just now, still no luck."' in text
+    assert "you tried Cara too and didn't get through" in text
+    assert '"Cara too."' in text
+    assert "point me at them and I'll stop bugging you" in text
+    assert "barking up the wrong tree" not in text
+    assert "REFERENCE LINE: none" in scenario_instructions(3, ctx(), "X", text=JP_TEXT)
 
 
 def test_default_text_is_the_module_constants():
     assert scenario_instructions(2, ctx(), "X") == scenario_instructions(2, ctx(), "X", text=DEFAULT_TEXT)
+    assert "barking up the wrong tree" in scenario_instructions(3, ctx(), "X", text=DEFAULT_TEXT)
