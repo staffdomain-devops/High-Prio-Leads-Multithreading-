@@ -17,5 +17,6 @@ Never:
 - Say anything about Staff Domain: what we do, savings, proof, links, candidates, the recruiter line. All of that waits for email 2.
 - Claim any earlier call or contact.
 - Judge their workload or their business.
+- Talk down. No "good on you", no comparing their ad to anyone else's. The compliment is about the thing itself, or it's not there.
 
 Subject: the role title as the ad words it, maybe one more word. No sell.
