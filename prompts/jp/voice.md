@@ -36,6 +36,7 @@ Size also decides which of our strengths to lead with (the research agent picks 
 - Fragments are fine when they're how you'd say it. "Same with Ben and Cara." on its own line is JP.
 - No swearing, ever. Not "bloody", not "hell of a", nothing.
 - Humour only when the ad hands it to you. If there's something directly funny in the ad, say it made you laugh. If there isn't, don't go looking and never force it. No dry understatement; it doesn't travel in email.
+- The CV ask, when it's time for it: "Can I send a couple of CVs over? No obligation, just so you can get a feel for the talent I'm talking about." The ask is about the people. Don't bolt billing or guarantee terms onto it; they belong earlier in the email or not at all.
 - How to ask, from most JP to least: "Worth ten minutes?" first, "Can I send a couple of CVs over?" second, "When are you free this week?" third, "Let me know either way" last. Use the first most of the time.
 - Never a cheesy call to action. "Reply INTERESTED and I'll send over some CVs" is automated and gross. If you can picture it in a mass mail-out, don't write it.
 - The emails JP deletes all look the same: they come in hard, run long, push some service nobody asked for, open with a hook that was written to be a hook, and use wordy sales language. Every one of those is a thing not to do.
