@@ -20,7 +20,7 @@ import hs
 from utils import parse_ts, set_output, write_dlq, write_json
 
 OPP_PROPS = [
-    "job_title", "job_title___proper", "job_description", "job_post_link", "job_board",
+    "job_title", "job_title___proper", "job_description", "job_post_link", "job_board", "job_post_city", "job_post_state",
     "vertical", "company_name", "final_score", "status", "opportunity_icp_rating", "job_type",
     "hpl_call_round", "hpl_call_matrix", "hpl_research_payload",
 ]

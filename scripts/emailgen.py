@@ -34,6 +34,18 @@ def load_inputs():
     return plan, research
 
 
+def role_location(opp, company):
+    """Where the role is based: the ad's city/state first, else the CRM company's. '' when unknown."""
+    for src in (opp, company):
+        city = (src.get("job_post_city") or src.get("city") or "").strip()
+        state = (src.get("job_post_state") or src.get("state") or "").strip()
+        if city:
+            return city
+        if state:
+            return state
+    return ""
+
+
 def tokens_for(plan, research, cid):
     contact = plan["contacts"].get(cid, {})
     opp = plan["opportunity"]
@@ -46,8 +58,11 @@ def tokens_for(plan, research, cid):
         "contact.company": company.get("name", "") or opp.get("company_name", "") or "",
         "contact.industry": company.get("industry", "") or opp.get("vertical", "") or "",
         "contact.website": company.get("website", "") or "",
-        # Email 1 opener: "not sure if it's you, Ben or Cara I should be speaking to"
+        # Email 1 opener: "not sure if it's you, Ben or Cara I should be asking"
         "contact.who_clause": bm.who_clause((plan.get("contexts", {}).get(cid) or {}).get("others", [])),
+        # "...the Assistant Buyer role you've got up in Brisbane" — empty clause when the location is unknown
+        "opportunity.location": role_location(opp, company),
+        "opportunity.location_clause": f" in {role_location(opp, company)}" if role_location(opp, company) else "",
         "opportunity.job_title": opp.get("job_title___proper") or opp.get("job_title", "") or "",
         "opportunity.job_post_link": opp.get("job_post_link", "") or "",
         "opportunity.job_description": opp.get("job_description", "") or "",

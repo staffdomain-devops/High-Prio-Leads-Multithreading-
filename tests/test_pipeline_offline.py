@@ -33,7 +33,7 @@ class FakeHubSpot:
         self.objects = {
             hs.OPPORTUNITY: {OPP: {"job_title___proper": "Assistant Buyer", "company_name": "City Beach",
                                    "job_description": "Manage purchase orders."}},
-            "companies": {"500": {"name": "City Beach", "industry": "Retail"}},
+            "companies": {"500": {"name": "City Beach", "industry": "Retail", "city": "Brisbane", "state": "QLD"}},
             "contacts": {
                 A: {"firstname": "Alice", "lastname": "Archer", "contact_icp_rating": "Prime (MM)", "kdm_rank": "1",
                     "hplmt_email_4": "stale email from an old campaign"},
@@ -313,7 +313,7 @@ def test_dry_run_writes_nothing(env):
 def test_default_prompt_set_does_not_name_other_contacts(env):
     fake_hs, fake_claude, tmp, mp = env
     run_round(env)
-    assert "I should be speaking to" not in fake_claude.prompts[A]
+    assert "I should be asking" not in fake_claude.prompts[A]
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "default"
 
 
@@ -321,10 +321,12 @@ def test_jp_prompt_set_names_other_contacts_in_email_1(env):
     fake_hs, fake_claude, tmp, mp = env
     mp.setenv("PROMPT_VERSION", "jp")
     run_round(env)
-    assert "not sure if it's you, Ben or Cara I should be speaking to" in fake_claude.prompts[A]
-    assert "not sure if it's you, Alice or Cara I should be speaking to" in fake_claude.prompts[B]
-    assert "not sure if it's you, Alice or Ben I should be speaking to" in fake_claude.prompts[C]
-    assert "Under 150 words" in fake_claude.prompts[A]
+    assert "sure if it's you, Ben or Cara I should be asking" in fake_claude.prompts[A]
+    assert "sure if it's you, Alice or Cara I should be asking" in fake_claude.prompts[B]
+    assert "sure if it's you, Alice or Ben I should be asking" in fake_claude.prompts[C]
+    assert "role you've got up in Brisbane." in fake_claude.prompts[A]
+    assert "Where the role is based: Brisbane" in fake_claude.prompts[A]
+    assert "Under 90 words" in fake_claude.prompts[A]
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "jp"
     assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
 
@@ -341,3 +343,11 @@ def test_unknown_prompt_set_fails_loudly(env, monkeypatch):
     monkeypatch.setenv("PROMPT_VERSION", "nope")
     with pytest.raises(RuntimeError, match="PROMPT_VERSION"):
         utils.prompts_dir()
+
+
+def test_role_location_prefers_the_ad_then_the_crm_company():
+    assert emailgen.role_location({"job_post_city": "Bankstown", "job_post_state": "NSW"}, {"city": "Brisbane"}) == "Bankstown"
+    assert emailgen.role_location({"job_post_state": "NSW"}, {"city": "Brisbane"}) == "NSW"
+    assert emailgen.role_location({}, {"city": "Brisbane", "state": "QLD"}) == "Brisbane"
+    assert emailgen.role_location({}, {"state": "QLD"}) == "QLD"
+    assert emailgen.role_location({}, {}) == ""
