@@ -58,6 +58,7 @@ def tokens_for(plan, research, cid):
         "contact.company": company.get("name", "") or opp.get("company_name", "") or "",
         "contact.industry": company.get("industry", "") or opp.get("vertical", "") or "",
         "contact.website": company.get("website", "") or "",
+        "company.size": str(company.get("numberofemployees") or "").strip(),
         # Email 1 opener: "not sure if it's you, Ben or Cara I should be asking"
         "contact.who_clause": bm.who_clause((plan.get("contexts", {}).get(cid) or {}).get("others", [])),
         # "...the Assistant Buyer role you've got up in Brisbane" — empty clause when the location is unknown

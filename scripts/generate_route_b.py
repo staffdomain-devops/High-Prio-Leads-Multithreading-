@@ -67,9 +67,10 @@ JP_TEXT = {
     },
     "close": {
         2: ("Finish by asking whether they're the right person for this and, if not, who you should be talking to. "
-            "Your words, one or two sentences, no pressure."),
+            "Your words, one or two sentences, no pressure. Pitch the register to the company size in the prospect details "
+            "(see the voice guide): plainer for a small business, a bit more shape for a large one."),
         3: ("Finish with an easy out: you're happy either way, and if it's someone else's call they can point you at them. "
-            "Your words."),
+            "Your words, register to match the company size."),
     },
     "missed_fact": "you tried {name} too and didn't get through",
     "connected_facts": {

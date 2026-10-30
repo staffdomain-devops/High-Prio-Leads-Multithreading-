@@ -33,7 +33,7 @@ class FakeHubSpot:
         self.objects = {
             hs.OPPORTUNITY: {OPP: {"job_title___proper": "Assistant Buyer", "company_name": "City Beach",
                                    "job_description": "Manage purchase orders."}},
-            "companies": {"500": {"name": "City Beach", "industry": "Retail", "city": "Brisbane", "state": "QLD"}},
+            "companies": {"500": {"name": "City Beach", "industry": "Retail", "city": "Brisbane", "state": "QLD", "numberofemployees": "4"}},
             "contacts": {
                 A: {"firstname": "Alice", "lastname": "Archer", "contact_icp_rating": "Prime (MM)", "kdm_rank": "1",
                     "hplmt_email_4": "stale email from an old campaign"},
@@ -328,6 +328,8 @@ def test_jp_prompt_set_names_other_contacts_in_email_1(env):
     assert "whether it's you, Alice or Cara you should be asking" in fake_claude.prompts[B]
     assert "whether it's you, Alice or Ben you should be asking" in fake_claude.prompts[C]
     assert "Where the role is based: Brisbane" in fake_claude.prompts[A]
+    assert "Company size: 4 staff" in fake_claude.prompts[A]
+    assert "Register scales with the size" in fake_claude.prompts[A]
     assert "under 90 words" in fake_claude.prompts[A]
     # the voice guide rides in with every JP prompt
     assert "## HOW JP WRITES" in fake_claude.prompts[A]
