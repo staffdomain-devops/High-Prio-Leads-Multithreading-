@@ -18,6 +18,8 @@ The JP set separates **facts** from **voice**. Facts are fixed: who was called a
 
 Email 4: after three missed calls, Route A, under 130 words. "I know this isn't for everyone, but having looked at the role, this is something we do day in, day out"; what they'd get (we take the whole hiring pain), the one cost aside in the sequence ("on average around 70%"), the YouTube proof point as the only link, and "Can I send a couple of CVs over? No obligation, just so you can get a feel for the talent I'm talking about." No call references, no commercial-reframe language.
 
-Email 5 is unchanged for now.
+Email 5: the last one, Route A, under 100 words. Says it's the last from us on the role and leaves it with them, one specific detail about them, the honest-advice note (we're the first to say when a role should stay local), the website resource as a leave-behind and the only link, door left open in one line. No calls, no cost, no CV offer, nothing hurt or hurried.
+
+All five emails now have JP specs.
 
 The fixed Route B material (call facts, and guidance for the opener and close) lives in `JP_TEXT` in `scripts/generate_route_b.py`.
