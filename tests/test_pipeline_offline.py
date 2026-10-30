@@ -315,7 +315,8 @@ def test_dry_run_writes_nothing(env):
 def test_default_prompt_set_does_not_name_other_contacts(env):
     fake_hs, fake_claude, tmp, mp = env
     run_round(env)
-    assert "I should be asking" not in fake_claude.prompts[A]
+    assert "you should be asking" not in fake_claude.prompts[A]
+    assert "HOW JP WRITES" not in fake_claude.prompts[A]
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "default"
 
 
@@ -323,12 +324,14 @@ def test_jp_prompt_set_names_other_contacts_in_email_1(env):
     fake_hs, fake_claude, tmp, mp = env
     mp.setenv("PROMPT_VERSION", "jp")
     run_round(env)
-    assert "sure if it's you, Ben or Cara I should be asking" in fake_claude.prompts[A]
-    assert "sure if it's you, Alice or Cara I should be asking" in fake_claude.prompts[B]
-    assert "sure if it's you, Alice or Ben I should be asking" in fake_claude.prompts[C]
-    assert "role you've got up in Brisbane." in fake_claude.prompts[A]
+    assert "whether it's you, Ben or Cara you should be asking" in fake_claude.prompts[A]
+    assert "whether it's you, Alice or Cara you should be asking" in fake_claude.prompts[B]
+    assert "whether it's you, Alice or Ben you should be asking" in fake_claude.prompts[C]
     assert "Where the role is based: Brisbane" in fake_claude.prompts[A]
-    assert "Under 90 words" in fake_claude.prompts[A]
+    assert "under 90 words" in fake_claude.prompts[A]
+    # the voice guide rides in with every JP prompt
+    assert "## HOW JP WRITES" in fake_claude.prompts[A]
+    assert "Lines JP rejected" in fake_claude.prompts[A]
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "jp"
     assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
 
@@ -385,10 +388,10 @@ def test_jp_prompt_set_round_1_uses_jp_route_b_wording(env):
     prompt = fake_claude.prompts[A]
     assert "Just tried giving you a quick call and didn't catch you." in prompt
     assert "you tried Ben too and didn't get through" in prompt and "you tried Cara too" in prompt
-    assert "If I'm barking up the wrong tree and should be talking to someone else" in prompt
-    assert "Quick FYI, I'm not a recruiter" in prompt and "True story:" in prompt
-    assert "Under 140 words" in prompt
-    assert "To be fair" not in prompt
+    assert "just tried calling them and didn't catch them" in prompt
+    assert "who you should be talking to" in prompt
+    assert "under 140 words" in prompt and "## HOW JP WRITES" in prompt
+    assert "To be fair" not in prompt and "Open with exactly" not in prompt
     assert contact(fake_hs, A)["hplmt_email_2"] == f"Body 2 for {A}"
 
     # Round 2: Ben connects (not the KDM); Alice and Cara get the short nudge
@@ -399,9 +402,9 @@ def test_jp_prompt_set_round_1_uses_jp_route_b_wording(env):
     plan = run_round(env, t2)
     assert plan["recipients"] == [A, C]
     prompt = fake_claude.prompts[A]
-    assert "Tried you again just now, still no luck." in prompt
+    assert "tried them again and still had no luck" in prompt
     assert "you had a quick chat with Ben and Ben reckons it probably sits with someone else" in prompt
     assert "you tried Cara too" in prompt
-    assert "Real question:" in prompt and "Second try" in prompt
-    assert "point me at them and I'll stop bugging you" in prompt
+    assert "300 to 500 applicants" in prompt and "under 80 words" in prompt
+    assert "point you at them" in prompt
     assert "barking up the wrong tree here" not in prompt

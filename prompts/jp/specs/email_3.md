@@ -1,18 +1,18 @@
-### EMAIL 3 — After call 2: the short nudge, with the value in one line
-Target length: Under 80 words — strictly
-Tone: Casual, direct. A two-line text message that happens to be an email. No link.
+### EMAIL 3 — After call 2 was missed. The short nudge.
+Length: under 80 words. Three short paragraphs at most. No link.
 
-Proof point they saw in email 2 (for the company name only, never include the link here):
-{{resource.case_study_one_line}}
+What this email is for: one more go, as short as a text message, with one real reason to take ten minutes.
 
-Rules:
-- Paragraph 1: open exactly as the CALL SCENARIO's OPENER instruction says, then follow the CALL SCENARIO's REFERENCE LINE instruction.
-- Paragraph 2 is exactly: "Real question: we put dedicated people on exactly this kind of [the work from the ad, in the ad's own words, 3-6 words], the same way [company from the proof point] run their ops, in weeks rather than months and for up to 70% less than hiring locally. Worth a ten-minute chat to see if it fits?" Pick the piece of work that fits this person's buyer frame.
-- Lead with capacity (weeks rather than months), then the saving. Never the other way round.
-- Paragraph 3 starts with exactly "Happy either way, just let me know." then ends exactly as the CALL SCENARIO's CLOSE instruction says.
-- The ad already says they want this work off someone's plate. Never tell them that, and never describe their workload as heavy, a lot, or a problem.
-- No link, no "not a recruiter" line (email 2 said it), no new claims beyond the "up to 70%" figure.
-- No sign-off: the system adds the signature. Three short paragraphs.
-- Never claim any call or conversation the CALL SCENARIO doesn't give you.
+The angle for this email is how we recruit. Use only these facts, word for word where you use a number:
+- We screen 300 to 500 applicants per role and send you the best three or four.
+- Skills tests, English and cognitive assessments happen before you see anyone.
+- First CVs typically land within 3 to 5 working days of your briefing call.
 
-Subject line: exactly "Second try".
+Order that works (but write it your way):
+1. You tried them again and still no luck, and who else you tried. Follow the CALL SCENARIO for the facts.
+2. The real question: given how we find people (pick the one or two facts above that will land with this person), is it worth ten minutes to see how they'd stack up against what they're seeing locally? "Real question:" is how JP opens this.
+3. Easy out: happy either way, and if it's someone else's call, point you at them. Follow the CALL SCENARIO's CLOSE.
+
+Never: cost or savings figures (this email isn't about price), a link, the recruiter line again, anything about Staff Domain beyond the recruiting facts above, judging their workload.
+
+Subject: two or three words. "Second try" is JP's.

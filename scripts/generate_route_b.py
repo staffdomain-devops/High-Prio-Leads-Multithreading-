@@ -57,15 +57,19 @@ DEFAULT_TEXT = {
 }
 
 JP_TEXT = {
+    # Facts are fixed. How they are said is the model's, within the voice guide.
     "what_happened": WHAT_HAPPENED,
     "openers": {
-        2: 'Open with exactly: "Just tried giving you a quick call and didn\'t catch you."',
-        3: 'Open with exactly: "Tried you again just now, still no luck."',
+        2: ("Start by saying, in your own words, that you just tried calling them and didn't catch them. "
+            "One sentence."),
+        3: ("Start by saying, in your own words, that you tried them again and still had no luck. "
+            "Shorter than last time."),
     },
     "close": {
-        2: ('End with exactly: "If I\'m barking up the wrong tree and should be talking to someone else, '
-            'just let me know and I\'ll follow them up."'),
-        3: 'End with exactly: "And if it\'s someone else\'s call, point me at them and I\'ll stop bugging you."',
+        2: ("Finish by asking whether they're the right person for this and, if not, who you should be talking to. "
+            "Your words, one or two sentences, no pressure."),
+        3: ("Finish with an easy out: you're happy either way, and if it's someone else's call they can point you at them. "
+            "Your words."),
     },
     "missed_fact": "you tried {name} too and didn't get through",
     "connected_facts": {
@@ -75,19 +79,18 @@ JP_TEXT = {
     },
     "not_kdm_suffix": " and {name} reckons it probably sits with someone else",
     "reference_none": {
-        2: ("REFERENCE LINE: none. Straight after the opener, finish the paragraph with exactly: "
-            "\"Still not 100% sure who the right person is for this one.\" Do not mention anyone else at the company."),
+        2: ("REFERENCE LINE: none. Do not mention anyone else at the company. "
+            "You can say you're still not sure they're the right person."),
         3: "REFERENCE LINE: none. Do not mention anyone else at the company.",
     },
     "reference_intro": {
         2: ("REFERENCE LINE: straight after the opener, one short sentence about who else you tried, "
-            "using only these facts:\n{facts}\n"
+            "using only these facts and nothing more:\n{facts}\n"
             "  First names only, no job titles, no he, she, his or her. Do not name the company. "
-            "Finish the sentence with exactly: \"so I'm still not 100% sure who the right person is for this one.\""),
+            "It's fine to add that you're still not sure who the right person is."),
         3: ("REFERENCE LINE: straight after the opener, a few words about who else you tried, "
-            "using only these facts:\n{facts}\n"
-            "  As short as it can be (\"Cara too.\" is fine when they were also missed). "
-            "First names only, no job titles, no he, she, his or her. Do not name the company."),
+            "using only these facts and nothing more:\n{facts}\n"
+            "  As short as it can be. First names only, no job titles, no he, she, his or her. Do not name the company."),
     },
 }
 

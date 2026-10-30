@@ -1,16 +1,21 @@
-### EMAIL 1 — Opener: one question
-Target length: Under 90 words — strictly
-Tone: Casual, direct, Australian. One business person emailing another to ask a question. Not a pitch. Nothing about us.
+### EMAIL 1 — Before any call. A question, not a pitch.
+Length: under 90 words. Three short paragraphs at most.
 
-Rules:
-- Open with exactly: "Not sure if it's {{contact.who_clause}} I should be asking, but I saw the [job title] role you've got up{{opportunity.location_clause}}."
-- Then one or two short sentences about something the ad actually says, in a good light: a line you liked, a detail that shows they've thought about the role. Quote it if it's short. Make it specific enough that it could only be about this ad.
-- Never describe the workload as heavy, a lot, or a problem. Never comment on the company's size or how they run things. They didn't ask for your opinion of their business.
-- Then, on its own line: "How are you going finding someone for it?"
-- Close with exactly: "Keen for a chat about it over the next few days. Let me know when you're free, or I'll just try my luck and give you a call."
-- Never name the company. They know where they work.
-- Nothing about Staff Domain: no description of what we do, no savings claim, no "not a recruitment agency" line, no link, no proof point, no candidates. All of that is email 2's job.
-- Never say "I tried to call you" or claim any earlier contact. Nobody has been called yet.
-- Three short paragraphs: the opener and comment, the question, the close.
+What this email is for: find out whether this is the right person and start a conversation. Nothing else.
 
-Subject line: the role title only, as the ad words it. Nothing else.
+What you know that they don't know you know:
+- Who else is on the list. You're not sure whether it's {{contact.who_clause}} you should be asking. Say so early, in your own words.
+- Where the role is based (see prospect details). Mention it if it's known; leave it out if it isn't.
+- The ad itself. Find one specific thing in it worth a genuine word: a line you liked, a detail that shows they've thought about the role. Quote it if it's short. It has to be specific enough that it could only be about this ad.
+
+Must:
+- Ask how they're going finding someone for it, or a question that does the same job.
+- Say you'll call them in the next few days and let them pick a time if they'd rather.
+
+Never:
+- Name the company.
+- Say anything about Staff Domain: what we do, savings, proof, links, candidates, the recruiter line. All of that waits for email 2.
+- Claim any earlier call or contact.
+- Judge their workload or their business.
+
+Subject: the role title as the ad words it, maybe one more word. No sell.

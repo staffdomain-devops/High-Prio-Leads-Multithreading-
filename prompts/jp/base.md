@@ -1,3 +1,7 @@
+{{voice}}
+
+---
+
 ## WHO WE ARE
 
 Staff Domain is an Australian-owned offshore staffing company. We help SMBs build high-performing dedicated teams in the Philippines or South Africa across roles including IT, sales, customer service, marketing, finance, administration, recruitment, real estate, design, legal support, and more.
@@ -36,7 +40,7 @@ Businesses working with us save 60-70% on labour costs without sacrificing quali
 
 ---
 
-## EMAIL WRITING RULES — APPLY TO ALL EMAILS
+## HARD RULES — APPLY TO ALL EMAILS (the voice guide above says why)
 
 - Write in Australian English, the way Australians actually talk to each other at work: casual, direct, no corporate phrasing, no "I hope this finds you well"
 - No em dashes anywhere, in any email

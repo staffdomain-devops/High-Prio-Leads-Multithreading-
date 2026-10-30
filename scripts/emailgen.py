@@ -76,6 +76,9 @@ def tokens_for(plan, research, cid):
         "resource.wr2_one_line": resources.get("website_resource_email2", {}).get("one_line", ""),
         "resource.wr5_one_line": resources.get("website_resource_email5", {}).get("one_line", ""),
     }
+    # A prompt set may carry a voice guide (prompts/<set>/voice.md); the base prompt pulls it in via {{voice}}
+    voice_path = prompts_dir() / "voice.md"
+    tokens["voice"] = voice_path.read_text(encoding="utf-8").strip() if voice_path.exists() else ""
     tokens["base"] = render("base.md", tokens)
     return tokens
 

@@ -4,16 +4,18 @@ A second prompt set, selected with `PROMPT_VERSION=jp` (workflow input `prompt_v
 
 What's different:
 
-| File | Change |
+The JP set separates **facts** from **voice**. Facts are fixed: who was called and what happened (Python, `JP_TEXT` in `scripts/generate_route_b.py`), the proof one-liner, every number and claim (`selling_points.md`). Voice is a guide, not a script: `voice.md` carries how JP writes, the emails JP has signed off, and the lines JP rejected and why. Each spec states the email's intent and guardrails and leaves the wording to the model.
+
+| File | What it is |
 |---|---|
-| `specs/email_1.md` | One question, under 90 words. Opener names the other people in the pool ("not sure if it's you, Ben or Cara I should be asking", `{{contact.who_clause}}`) and where the role is based (`{{opportunity.location_clause}}`, from the ad's city/state or the CRM company city). One specific positive comment on something the ad says. Then "How are you going finding someone for it?" and a casual close. Nothing about Staff Domain: no company name, no link, no savings, no disclaimer. |
-| `specs/email_2.md` | Under 140 words. "Just tried giving you a quick call and didn't catch you", who else you tried, "so I'm still not 100% sure who the right person is for this one". "Quick FYI, I'm not a recruiter, and we're not an agency or a BPO", what we do in one sentence with 1-2 pieces of work from the ad, "They just sit in one of our offices rather than yours", "Usually saves tens of thousands a year". "True story:" plus the case study one-liner as the only link. Close: "If I'm barking up the wrong tree and should be talking to someone else, just let me know and I'll follow them up." |
-| `specs/email_3.md` | Under 80 words, no link. "Tried you again just now, still no luck." plus who else ("Cara too."). "Real question: we put dedicated people on exactly this kind of [work from the ad], the same way [proof point company] run their ops, in weeks rather than months and for up to 70% less than hiring locally. Worth a ten-minute chat to see if it fits?" "Happy either way, just let me know. And if it's someone else's call, point me at them and I'll stop bugging you." |
-
-The fixed Route B wording (openers, reference facts, closes) for emails 2 and 3 lives in `JP_TEXT` in `scripts/generate_route_b.py`.
-
-| `base.md` | Voice rules: casual Aussie, no sales-speak, pitch to the buyer frame, no "Hi Alice" in the body, disclaimer only when the spec asks. Adds the role's location to the prospect details. |
-| `selling_points.md` | JP's selling-points library (30 Oct 2026), model-facing copy: internal-only notes, competitor names and unverified claims removed. The research agent picks one line per contact for their buyer frame; it reaches the email agents as `{{research.selling_point}}`. House savings line is "up to 70%". |
-| `research_prompt.md` | Gets the selling points library and returns one chosen line per contact. Resource one-liners written like you'd say them to a mate, with a good and a bad example. No "case study", "offshore", "from us" or "achieved". |
+| `voice.md` | How JP writes: beliefs about these emails, register, two signed-off emails as examples, rejected lines with reasons. Pulled into every JP prompt via `{{voice}}` in `base.md`. |
+| `specs/email_1.md` | Before any call. A question, not a pitch. Under 90 words. Knows who else is on the list (`{{contact.who_clause}}`), where the role is based, and the ad. Nothing about Staff Domain, no company name, no claim of an earlier call. |
+| `specs/email_2.md` | After a missed call. Who else was tried (facts from the CALL SCENARIO), the recruiter line once, what we are grounded in their ad, the proof point word for word as the only link, ask who the right person is. Under 140 words. May use the person's selling point or "up to 70%", one at most. |
+| `specs/email_3.md` | After a second missed call. Short nudge, under 80 words, no link. The angle is how we recruit (300 to 500 applicants screened, best three or four sent, CVs in 3 to 5 days, tests before you see anyone). No cost figures. Easy out. |
+| `selling_points.md` | JP's selling-points library (30 Oct 2026), model-facing copy. Research agent picks one line per contact (`{{research.selling_point}}`). House savings line "up to 70%". Replacement guarantee: first three months, resignations included. |
+| `research_prompt.md` | Gets the selling points library and returns one chosen line per contact. Resource one-liners written like you'd say them to a mate. |
+| `base.md` | Pulls in `voice.md`, shows the role's location and the chosen selling point, hard rules. |
 
 Emails 4 and 5 are unchanged for now.
+
+The fixed Route B material (call facts, and guidance for the opener and close) lives in `JP_TEXT` in `scripts/generate_route_b.py`.
