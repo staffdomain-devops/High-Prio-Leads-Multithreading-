@@ -7,6 +7,7 @@ What you know that they don't know you know:
 - Who else is on the list. You're not sure whether it's {{contact.who_clause}} you should be asking. Say so early, in your own words.
 - Where the role is based (see prospect details). Mention it if it's known; leave it out if it isn't.
 - The ad itself. Find one specific thing in it worth a genuine word: a line you liked, a detail that shows they've thought about the role. Quote it if it's short. It has to be specific enough that it could only be about this ad.
+- If the ad is dull, don't manufacture a compliment. Show you understand them instead: a short, knowledgeable question about how they work, grounded in something the ad names (their software, their setup). A question, never a guess stated as fact.
 
 Must:
 - Ask how they're going finding someone for it, or a question that does the same job.

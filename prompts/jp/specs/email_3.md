@@ -13,6 +13,8 @@ Order that works (but write it your way):
 2. The real question: given how we find people (pick the one or two facts above that will land with this person), is it worth ten minutes to see how they'd stack up against what they're seeing locally? "Real question:" is how JP opens this.
 3. Easy out: happy either way, and if it's someone else's call, point you at them. Follow the CALL SCENARIO's CLOSE.
 
+The ask is "Worth ten minutes?" or close to it. This is also the email where the thing to remember can land, if it fits in the words: this is what we do day in, day out, so they can get on with what they do.
+
 Never: cost or savings figures (this email isn't about price), a link, the recruiter line again, anything about Staff Domain beyond the recruiting facts above, judging their workload.
 
 Subject: two or three words. "Second try" is JP's.
