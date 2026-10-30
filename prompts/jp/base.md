@@ -32,6 +32,8 @@ Businesses working with us save 60-70% on labour costs without sacrificing quali
 
 **Buyer frame (how to pitch this person):** {{research.buyer_frame}}
 
+**Selling point picked for this person (copy it word for word, and only where the email spec asks for it):** {{research.selling_point}}
+
 ---
 
 ## EMAIL WRITING RULES — APPLY TO ALL EMAILS

@@ -42,6 +42,12 @@ def validate(payload, contact_ids):
     return None
 
 
+def selling_points_library():
+    """The prompt set's selling points, if it has them (prompts/<set>/selling_points.md). Empty otherwise."""
+    path = prompts_dir() / "selling_points.md"
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
 def contacts_list(plan):
     lines = []
     for cid in plan["matrix_after"]["order"]:
@@ -74,6 +80,7 @@ def main():
         "company.website": company.get("website", ""),
         "company.description": company.get("description", ""),
         "campaign.current_date": date.today().isoformat(),
+        "selling_points": selling_points_library(),
     }
     prompt = substitute_tokens((prompts_dir() / "research_prompt.md").read_text(encoding="utf-8"), tokens)
     print(f"Research prompt: {len(prompt):,} chars | {len(plan['matrix_after']['order'])} contacts "

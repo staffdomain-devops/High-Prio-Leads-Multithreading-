@@ -69,6 +69,8 @@ def tokens_for(plan, research, cid):
         "research.company_summary": research.get("company_summary", ""),
         "research.job_description_insights": research.get("job_description_insights", ""),
         "research.buyer_frame": (research.get("buyer_frames") or {}).get(cid, ""),
+        # One approved line per contact, chosen by the research agent from the prompt set's selling points
+        "research.selling_point": ((research.get("selling_points") or {}).get(cid) or {}).get("line", ""),
         "resource.case_study_one_line": resources.get("case_study", {}).get("one_line", ""),
         "resource.youtube_one_line": resources.get("youtube_video", {}).get("one_line", ""),
         "resource.wr2_one_line": resources.get("website_resource_email2", {}).get("one_line", ""),

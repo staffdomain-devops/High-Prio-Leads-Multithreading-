@@ -89,6 +89,14 @@ Businesses working with us save 60-70% on labour costs without sacrificing quali
 
 ---
 
+## SELLING POINTS LIBRARY
+
+Short lines, proof points and objection answers, grouped by theme. Every line here is approved for use in an email. Pick from it; never paraphrase a figure.
+
+{{selling_points}}
+
+---
+
 ## RESOURCE SELECTION RULES
 
 Work through these in order. Stop at the first match.
@@ -133,7 +141,8 @@ Must be DIFFERENT from the resource used in Email 2. Choose from:
    - Bad: "Liqui Moly's lean two-person team managing multi-million dollar operations got offshore operations, reporting and admin support from us"
    - Never use "case study", "offshore", "offshoring", "outsourcing", "from us" or "achieved". End with the URL and nothing after it.
 4. Write one buyer frame per contact, keyed by their contact ID
-5. Return the JSON payload below
+5. Pick one selling point per contact from the SELLING POINTS LIBRARY: the single short line that best answers what this person, in their role, would worry about (a CIO: security; a founder: risk reversal or growth; HR or ops: people who stay, managed support; finance: transparent pricing). Copy the line word for word. Never pick a pricing figure from section 15.
+6. Return the JSON payload below
 
 ---
 
@@ -147,6 +156,12 @@ Return exactly this JSON structure:
   "job_description_insights": "2-3 specific requirements or responsibilities from the job description that reveal their current pressure or gap",
   "buyer_frames": {
     "<contact ID>": "One sentence identifying this contact's likely frame of reference: Founder/CEO (business impact focus) OR Ops/HR leader (process/people focus) — and their primary concern"
+  },
+  "selling_points": {
+    "<contact ID>": {
+      "section": "The library section the line comes from, e.g. Risk reversal",
+      "line": "One short line copied word for word from the SELLING POINTS LIBRARY"
+    }
   },
   "resources": {
     "case_study": {

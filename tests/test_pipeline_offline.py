@@ -94,9 +94,11 @@ class FakeClaude:
         assert "{{" not in prompt, f"unreplaced token in prompt: {re.findall(r'{{[^}]+}}', prompt)}"
         if "RESOURCE LIBRARY" in prompt:
             res = {"id": "X", "url": "https://x", "one_line": "Proof point https://x"}
+            cids = re.findall(r"Contact ID (\d+)", prompt)
             return {"company_summary": "Retailer.", "job_summary": ["Raise purchase orders"],
                     "job_description_insights": "POs.",
-                    "buyer_frames": {cid: f"frame {cid}" for cid in re.findall(r"Contact ID (\d+)", prompt)},
+                    "buyer_frames": {cid: f"frame {cid}" for cid in cids},
+                    "selling_points": {cid: {"section": "Risk reversal", "line": f"point {cid}"} for cid in cids},
                     "resources": {k: res for k in research_opportunity.REQUIRED_RESOURCES}}
         cid = raw_name.removeprefix("raw_").removesuffix(".txt")
         self.prompts[cid] = prompt
@@ -332,10 +334,28 @@ def test_jp_prompt_set_names_other_contacts_in_email_1(env):
 
 
 def test_jp_prompt_set_is_self_contained():
+    """Every default prompt file has a jp counterpart (jp may add files of its own)."""
     default = Path(__file__).parent.parent / "prompts"
     jp = default / "jp"
     expected = {p.relative_to(default) for p in default.rglob("*.md") if "jp" not in p.parts}
-    assert {p.relative_to(jp) for p in jp.rglob("*.md")} - {Path("README.md")} == expected
+    assert expected <= {p.relative_to(jp) for p in jp.rglob("*.md")}
+
+
+def test_jp_research_gets_selling_points_and_emails_get_the_chosen_line(env):
+    fake_hs, fake_claude, tmp, mp = env
+    mp.setenv("PROMPT_VERSION", "jp")
+    run_round(env)
+    research = json.loads(fake_hs.objects[hs.OPPORTUNITY][OPP]["hpl_research_payload"])
+    assert research["selling_points"][A]["line"] == f"point {A}"
+    assert f"Selling point picked for this person (copy it word for word, and only where the email spec asks for it):** point {A}" \
+        in fake_claude.prompts[A]
+
+
+def test_default_set_has_no_selling_points(env):
+    fake_hs, fake_claude, tmp, mp = env
+    run_round(env)
+    assert "SELLING POINTS LIBRARY" not in fake_claude.prompts[A]
+    assert "Selling point picked" not in fake_claude.prompts[A]
 
 
 def test_unknown_prompt_set_fails_loudly(env, monkeypatch):
