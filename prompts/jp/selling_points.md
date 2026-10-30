@@ -2,6 +2,8 @@
 
 Edited copy of JP's selling-points document (30 Oct 2026) for the research agent. Internal-only notes, competitor names and every claim marked "verify before using" have been removed, so anything in this file may be used in an email. Pricing figures (section 15) are for the rep, never for a cold email.
 
+Replacement guarantee wording (JP, 30 Oct 2026; matches ruling CSR-R47): if anyone leaves or doesn't work out in their first three months, we replace them free, resignations included. The original document said six months; that is superseded.
+
 Source material for building outbound and nurture emails. Each section is a set of building blocks: short lines, proof points and objection answers that can be dropped into an email.
 
 Built from 665 closed-won deals (Oct 2024 to Oct 2026): HubSpot calls, rep emails, Chorus transcripts, staffdomain.com and a competitor review.
@@ -34,12 +36,12 @@ This is the most-used argument on won calls and in won emails. Lead with it when
 - No upfront fee. Nothing is billed until your new team member starts.
 - Signing our agreement commits you to nothing. It only sets the terms if you decide to hire.
 - Interview as many candidates as you like, at no cost.
-- If they don't work out in the first 6 months, we replace them free.
+- If anyone leaves or doesn't work out in their first three months, we replace them free. That includes resignations.
 - No lock-in contracts. Month to month, with 60 days' notice either way.
 - Our success fee is only charged if your hire makes it past month 3.
 
 **Email-ready paragraph**
-> There's no risk in getting started. You pay nothing until someone starts, and if they're not the right fit in their first six months, we replace them at no cost. No lock-in, no upfront fees, just 60 days' notice if you ever want to stop.
+> There's no risk in getting started. You pay nothing until someone starts, and if they leave or aren't the right fit in their first three months, we replace them at no cost. No lock-in, no upfront fees, just 60 days' notice if you ever want to stop.
 
 ---
 
@@ -175,7 +177,7 @@ Case studies are published on staffdomain.com, so they can be named in emails.
 
 Use these to stand out. Never name a competitor.
 
-- **Published replacement guarantee.** None of the big AU players publishes one. We give six months.
+- **Published replacement guarantee.** None of the big AU players publishes one. Ours covers the first three months, resignations included.
 - **Zero margin, payslip shown.** Most competitors hide pricing behind a "get a quote" form.
 - **Built for Australia and New Zealand only.** Several big competitors are now chasing the US and Colombia. No competitor talks about New Zealand.
 - **Philippines for your day, South Africa for your evening.** Nobody else pitches South Africa to AU and NZ businesses.
@@ -189,13 +191,13 @@ Use these to stand out. Never name a competitor.
 
 | They think | We say |
 |---|---|
-| "What if they can't do the job?" | Probation exits happen within a week, and we replace them free within six months. |
+| "What if they can't do the job?" | Probation exits happen within a week, and we replace them free within the first three months. |
 | "We tried offshoring before and it failed." | The market has changed. Cheap providers place juniors; we test skills before you meet anyone. |
 | "How do I manage someone remotely?" | Your Client Success Manager sets KPIs with you and checks in weekly for six weeks. |
 | "Is our data safe?" | ISO 27001, a separate network for your business, and devices we can wipe instantly. |
 | "We'll be locked in." | No lock-in. Month to month, 60 days' notice. |
 | "What about Fair Work and legal risk?" | We're the employer of record. You contract with our Australian entity, so no offshore employment liability. |
-| "Staff will just leave." | Our turnover fell 46% last year, and staff must give 60 days' notice. |
+| "Staff will just leave." | Our turnover fell 46% last year, staff must give 60 days' notice, and if anyone leaves in their first three months we replace them free. |
 | "Remote relationships fizzle out." | Hire five or more and we fly one of your team to Manila for a week to meet them. |
 | "It's still too expensive." | Up to 70% less than local, with salary, benefits, equipment, HR and IT included. Work-from-home options lower it further. |
 
@@ -229,7 +231,7 @@ Line for specialist roles:
 | Savings vs local hire | Up to 70% |
 | Average time to hire (specialised roles) | Under 24 days (2024 to 2025) |
 | First CVs | 3 to 5 working days after briefing |
-| Replacement guarantee | Free, within 6-month probation |
+| Replacement guarantee | Free, if anyone leaves or doesn't work out in their first three months (resignations included) |
 | Notice to exit | 60 days, no lock-in |
 | Staff notice requirement | 60 days |
 | Voluntary turnover change | Down 46% (2024 to 2025) |
