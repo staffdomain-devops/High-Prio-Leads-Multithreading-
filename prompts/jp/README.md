@@ -16,6 +16,8 @@ The JP set separates **facts** from **voice**. Facts are fixed: who was called a
 | `research_prompt.md` | Gets the selling points library and returns one chosen line per contact. Resource one-liners written like you'd say them to a mate. |
 | `base.md` | Pulls in `voice.md`, shows the role's location and the chosen selling point, hard rules. |
 
-Emails 4 and 5 are unchanged for now.
+Email 4: after three missed calls, Route A, under 130 words. "I know this isn't for everyone, but having looked at the role, this is something we do day in, day out"; what they'd get (we take the whole hiring pain), the one cost aside in the sequence ("on average around 70%"), the YouTube proof point as the only link, and "Can I send a couple of CVs over?". No call references, no commercial-reframe language.
+
+Email 5 is unchanged for now.
 
 The fixed Route B material (call facts, and guidance for the opener and close) lives in `JP_TEXT` in `scripts/generate_route_b.py`.

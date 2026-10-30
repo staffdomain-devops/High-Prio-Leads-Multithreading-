@@ -1,17 +1,19 @@
-### EMAIL 4 — Commercial reframe / execution capacity
-Target length: Under 250 words
-Tone: Confident, commercial, direct. No apology. No discount. Peer-to-peer.
+### EMAIL 4 — After three missed calls. The full picture, once, without pushing.
+Length: under 130 words. Four short paragraphs at most. No bullet points.
 
-Pre-selected YouTube Video (use exactly this one-liner):
+Proof point (copy word for word, URL included, the only link in this email):
 {{resource.youtube_one_line}}
 
-Rules:
-- Do NOT open with a reference to the missed call
-- Lead with the insight: competitive advantage often comes from execution speed and capacity, not strategy alone
-- Reference 2-3 specific roles relevant to their industry and company based on the job post and company research (include the role they posted plus 1-2 adjacent roles they likely also need)
-- Reframe the advantage in practical commercial terms: faster execution, deeper talent pools, margin protection, scalability, freeing leadership time
-- Reference candidate availability
-- Include the pre-selected YouTube Video — use exactly the one-liner provided above (do not modify it)
-- End with a clear CTA: offer to send profiles or book a short call
+What this email is for: they've had three calls they didn't pick up and three short emails. This is the one that says, plainly and once, what working with us actually looks like, then offers to send CVs. Nothing in it references the calls.
 
-Subject line: Commercial, no fluff. Angle on capacity or execution.
+Order that works (but write it your way):
+1. Open on their terms, not ours: you know this isn't for everyone, but having looked at the [role], this is something we do day in, day out. That's JP's line for this spot; use the idea, not necessarily the words.
+2. What they'd actually get, grounded in their ad and the facts you've been given: we take the whole hiring pain, finding the person, background checks, employment, payroll, equipment, so they can get on with what they do. One or two concrete pieces from the selling points material, word for word where there's a number. Pick for this person and the company's size.
+3. The cost aside, once, in JP's shape: "The fact that it's on average around 70% less than hiring locally doesn't hurt either, particularly these days as things get tighter." This is the only email in the sequence where cost appears, and it's an aside, not the point.
+4. The proof point, led in naturally, word for word. Then the ask: "Can I send a couple of CVs over?" is JP's for this email. A profile or two, no obligation, nothing billed until someone starts.
+
+Can, if it's grounded in the ad or their industry and said as a question rather than a claim: one adjacent role they might also be thinking about ("if you're also looking at bookkeeping or customer service down the track, same deal"). Never a list of roles.
+
+Never: reference to calls or anyone else at the company, "offshoring" or "outsourcing", the recruiter line again, a second link, more than one number beyond the 70%, judging their workload or business, any commercial-reframe language ("execution speed", "margin protection", "scalability", "capacity"). Never push: this is confident and unhurried.
+
+Subject: plain, about the role or about what we do. No sell.
