@@ -402,6 +402,6 @@ def test_jp_prompt_set_round_1_uses_jp_route_b_wording(env):
     assert "Tried you again just now, still no luck." in prompt
     assert "you had a quick chat with Ben and Ben reckons it probably sits with someone else" in prompt
     assert "you tried Cara too" in prompt
-    assert "Honest question:" in prompt and "Second try" in prompt
+    assert "Real question:" in prompt and "Second try" in prompt
     assert "point me at them and I'll stop bugging you" in prompt
     assert "barking up the wrong tree here" not in prompt
