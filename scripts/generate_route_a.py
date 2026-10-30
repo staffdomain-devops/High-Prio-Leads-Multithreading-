@@ -9,6 +9,7 @@ import sys
 
 import build_matrix as bm
 import emailgen
+import factcheck
 from claude import MODEL
 from utils import prompt_version, write_dlq
 
@@ -35,6 +36,7 @@ def main():
     print(f"Calling {MODEL} (prompt set: {prompt_version() or 'default'})...")
     try:
         emails = emailgen.generate(prompt, slots, f"raw_{cid}.txt")
+        emailgen.fact_check(plan, cid, emails)   # refuses the email if it misstates who was called or what happened
         emailgen.write_contact(plan, research, cid, emails)
     except Exception as exc:
         write_dlq(plan["opportunity_id"], cid, "generate_route_a", exc, retry_count=1)

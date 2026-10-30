@@ -60,6 +60,8 @@ The pool is every contact associated with the Opportunity at round 0, **except**
 
 Besides calls, **an unsubscribe** (`hs_email_optout`) takes a contact out of the pool (`OPTED_OUT`), and they're never mentioned in other people's emails.
 
+**Every email is fact-checked before it is written.** `scripts/factcheck.py` reads the finished text and refuses it if it names anyone outside the allowed list, says we reached someone who was missed (or missed someone who connected), says an unconfirmed contact pointed us elsewhere, or claims a call in an email that must not reference calls (1, 4, 5). The rejected text is kept as `rejected_<contact>.json` in the run output, the dead-letter record carries the reasons, and the other contacts' emails are unaffected. Re-running the round retries that contact.
+
 **Replies are handled in HubSpot, not here.** If a contact replies mid-sequence, the whole sequence exits on the HubSpot side, so the pipeline never reads email or meeting records (and its token doesn't need email scopes).
 
 **No call logged:** a pool contact with no call in the round's task window stays in the pool but **gets no email that round**, because the email would falsely claim a call. They're also left out of everyone else's references, they stay on the next call task, and the run shows a warning naming them.

@@ -11,6 +11,7 @@ import os
 from datetime import datetime, timezone
 
 import build_matrix as bm
+import factcheck
 import hs
 from claude import generate_json
 from utils import (clean_text, is_dry_run, prompt_version, prompts_dir, read_json, safe_truncate,
@@ -115,6 +116,18 @@ def generate(prompt, slots, raw_name):
             raise RuntimeError(f"Claude response missing email_{n}")
         emails[n] = {"subject": clean_text(email.get("subject", "")), "body": clean_text(email["body"])}
     return emails
+
+
+def fact_check(plan, cid, emails):
+    """Stop an email that misstates the call facts before it reaches HubSpot. The rejected text is kept
+    in rejected_<cid>.json for review; the raised error lands in the dead-letter record."""
+    try:
+        factcheck.check_emails(plan, cid, emails)
+    except factcheck.FactCheckError as exc:
+        write_json(f"rejected_{cid}.json", {"contact_id": cid, "round": plan["round"], "emails": emails,
+                                            "problems": str(exc).split("\n")})
+        print(f"FACT CHECK FAILED for contact {cid}:\n{exc}")
+        raise
 
 
 def write_contact(plan, research, cid, emails):

@@ -152,6 +152,7 @@ jobs:
             ${{ runner.temp }}/plan.json
             ${{ runner.temp }}/research.json
             ${{ runner.temp }}/email_*.json
+            ${{ runner.temp }}/rejected_*.json
             ${{ runner.temp }}/finalize.json
             ${{ runner.temp }}/failed_run.json
           if-no-files-found: ignore

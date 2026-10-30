@@ -8,6 +8,7 @@ One HubSpot Opportunity per run → 3 call rounds across its contacts → determ
 - **The pipeline is the only writer of `hpl_call_round`**, and finalize writes it last, in the same update as `hpl_call_matrix`.
 - **A contact's email slot is written only when empty.** Round 0 wipes 2 to 5 and finalize clears dropped contacts. Don't add a code path that overwrites a populated slot: HubSpot re-enrols on "`hplmt_email_N` is known" and would re-send it.
 - **Route B facts come from Python** (`scenario_instructions`). The model must never be asked to infer calls, referrals or KDM status itself.
+- **Every email is fact-checked before it is written** (`scripts/factcheck.py`, pure, tested in `tests/test_factcheck.py`). A body that names someone it may not, says we reached someone we missed (or the reverse), or claims a call in a Route A email is refused: the text goes to `rejected_<contact>.json`, the run fails for that contact only. Keep the phrase lists there in step with the Route B wording.
 - Opportunity custom object type: `p5402982_opportunities`.
 - Disposition GUIDs in `build_matrix.py` are portal-specific. If HubSpot call outcomes change, update `DISPOSITION_LABELS` / `CONNECTED`. Any unknown outcome counts as MISSED.
 - Model: `claude-sonnet-5-5` (`scripts/claude.py`).

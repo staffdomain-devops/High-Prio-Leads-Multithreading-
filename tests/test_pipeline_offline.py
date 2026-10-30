@@ -89,6 +89,7 @@ class FakeHubSpot:
 class FakeClaude:
     def __init__(self):
         self.prompts = {}
+        self.canned = {}  # contact id -> body to return, for tests that need the model to say something specific
 
     def __call__(self, system, prompt, max_tokens, raw_name):
         assert "{{" not in prompt, f"unreplaced token in prompt: {re.findall(r'{{[^}]+}}', prompt)}"
@@ -103,7 +104,7 @@ class FakeClaude:
         cid = raw_name.removeprefix("raw_").removesuffix(".txt")
         self.prompts[cid] = prompt
         slots = re.findall(r'"email_(\d)": \{"subject"', prompt.split("## OUTPUT FORMAT")[1])
-        return {f"email_{n}": {"subject": f"S{n}", "body": f"Body {n} for {cid}"} for n in slots}
+        return {f"email_{n}": {"subject": f"S{n}", "body": self.canned.get(cid, f"Body {n} for {cid}")} for n in slots}
 
 
 @pytest.fixture
@@ -410,3 +411,29 @@ def test_jp_prompt_set_round_1_uses_jp_route_b_wording(env):
     assert "300 to 500 applicants" in prompt and "under 80 words" in prompt
     assert "point you at them" in prompt
     assert "barking up the wrong tree here" not in prompt
+
+
+# --- fact check -------------------------------------------------------------------
+
+def test_fact_check_stops_an_email_that_misstates_a_call(env):
+    import factcheck
+    fake_hs, fake_claude, tmp, mp = env
+    run_round(env)
+    t1 = fake_hs.add_task("t1", 21)
+    for cid in (A, B, C):
+        fake_hs.add_call(cid, t1, NO_ANSWER)
+    # The model claims a chat with Cara, who was missed. Alice's email must not be written.
+    fake_claude.canned[A] = "Just tried you. Had a quick chat with Cara, who reckons this sits with someone else."
+    mp.setenv("TASK_ID", t1)
+    plan_round.main()
+    mp.setenv("CONTACT_ID", A)
+    with pytest.raises(factcheck.FactCheckError, match="says we reached Cara"):
+        generate_route_b.main()
+    assert contact(fake_hs, A).get("hplmt_email_2", "") == ""
+    rejected = json.loads((tmp / f"rejected_{A}.json").read_text())
+    assert rejected["problems"] and "Cara" in rejected["problems"][0]
+    # The other contacts are unaffected
+    for cid in (B, C):
+        mp.setenv("CONTACT_ID", cid)
+        generate_route_b.main()
+        assert contact(fake_hs, cid)["hplmt_email_2"] == f"Body 2 for {cid}"

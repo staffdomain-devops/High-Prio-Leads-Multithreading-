@@ -90,5 +90,6 @@ jobs:
           path: |
             ${{ runner.temp }}/email_${{ matrix.contact_id }}.json
             ${{ runner.temp }}/raw_${{ matrix.contact_id }}.txt
+            ${{ runner.temp }}/rejected_${{ matrix.contact_id }}.json
           if-no-files-found: ignore
           retention-days: 7
