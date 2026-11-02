@@ -148,6 +148,7 @@ def contact(fake_hs, cid):
 
 
 def test_full_sequence_pool_then_kdm(env):
+    env[3].setenv("PROMPT_VERSION", "default")  # asserts the original set's wording
     fake_hs, fake_claude, tmp, _ = env
     opp = fake_hs.objects[hs.OPPORTUNITY][OPP]
 
@@ -242,6 +243,7 @@ def test_round_0_excludes_unsubscribed_and_contacts_in_another_sequence(env):
 
 
 def test_unsubscribe_stops_that_contact(env):
+    env[3].setenv("PROMPT_VERSION", "default")  # asserts the original set's wording
     fake_hs, fake_claude, _, _ = env
     run_round(env)
     contact(fake_hs, C)["hs_email_optout"] = "true"
@@ -257,6 +259,7 @@ def test_unsubscribe_stops_that_contact(env):
 
 
 def test_uncalled_contact_gets_no_email_and_is_not_referenced(env):
+    env[3].setenv("PROMPT_VERSION", "default")  # asserts the original set's wording
     fake_hs, fake_claude, _, _ = env
     run_round(env)
     t1 = fake_hs.add_task("t1", 21)
@@ -314,11 +317,24 @@ def test_dry_run_writes_nothing(env):
 # --- prompt sets ----------------------------------------------------------------
 
 def test_default_prompt_set_does_not_name_other_contacts(env):
+    env[3].setenv("PROMPT_VERSION", "default")  # asserts the original set's wording
     fake_hs, fake_claude, tmp, mp = env
     run_round(env)
     assert "you should be asking" not in fake_claude.prompts[A]
     assert "HOW JP WRITES" not in fake_claude.prompts[A]
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "default"
+
+
+def test_webhook_run_with_no_prompt_version_uses_jp(env):
+    """The HubSpot webhook never sends prompt_version. That run must be the JP set, end to end."""
+    fake_hs, fake_claude, tmp, mp = env
+    mp.delenv("PROMPT_VERSION", raising=False)
+    run_round(env)
+    assert "## HOW JP WRITES" in fake_claude.prompts[A]
+    assert "whether it's you, Ben or Cara you should be asking" in fake_claude.prompts[A]
+    assert "Selling point picked for this person" in fake_claude.prompts[A]  # research ran under JP too
+    assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "jp"
+    assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
 
 
 def test_jp_prompt_set_names_other_contacts_in_email_1(env):
@@ -358,6 +374,7 @@ def test_jp_research_gets_selling_points_and_emails_get_the_chosen_line(env):
 
 
 def test_default_set_has_no_selling_points(env):
+    env[3].setenv("PROMPT_VERSION", "default")  # asserts the original set's wording
     fake_hs, fake_claude, tmp, mp = env
     run_round(env)
     assert "SELLING POINTS LIBRARY" not in fake_claude.prompts[A]
@@ -369,6 +386,23 @@ def test_unknown_prompt_set_fails_loudly(env, monkeypatch):
     monkeypatch.setenv("PROMPT_VERSION", "nope")
     with pytest.raises(RuntimeError, match="PROMPT_VERSION"):
         utils.prompts_dir()
+
+
+def test_blank_prompt_version_is_jp_and_default_is_the_original(monkeypatch):
+    """The HubSpot webhook sends no prompt_version, so blank must be the JP set (the live one).
+    'default' selects prompts/ (the original)."""
+    from utils import DEFAULT_PROMPT_VERSION, PROMPTS_ROOT, prompt_version, prompts_dir
+    assert DEFAULT_PROMPT_VERSION == "jp"
+    monkeypatch.delenv("PROMPT_VERSION", raising=False)
+    assert prompt_version() == "jp" and prompts_dir() == PROMPTS_ROOT / "jp"
+    monkeypatch.setenv("PROMPT_VERSION", "  ")
+    assert prompts_dir() == PROMPTS_ROOT / "jp"
+    for name in ("default", "Default", "original", "base"):
+        monkeypatch.setenv("PROMPT_VERSION", name)
+        assert prompt_version() == "" and prompts_dir() == PROMPTS_ROOT
+    monkeypatch.setenv("PROMPT_VERSION", "jp")
+    assert prompts_dir() == PROMPTS_ROOT / "jp"
+
 
 
 def test_role_location_prefers_the_ad_then_the_crm_company():

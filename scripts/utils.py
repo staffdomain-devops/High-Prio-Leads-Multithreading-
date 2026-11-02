@@ -15,12 +15,24 @@ from tenacity import (
 PROMPTS_ROOT = Path(__file__).parent.parent / "prompts"
 
 
+DEFAULT_PROMPT_VERSION = "jp"
+ORIGINAL_SET_NAMES = {"default", "original", "base"}
+
+
 def prompt_version():
-    return os.environ.get("PROMPT_VERSION", "").strip()
+    """The selected prompt set. Blank (what the HubSpot webhook sends) is DEFAULT_PROMPT_VERSION,
+    so the live pipeline uses it without anyone passing an input. "default" selects the
+    original prompts/ set and is returned as ""."""
+    version = os.environ.get("PROMPT_VERSION", "").strip()
+    if not version:
+        return DEFAULT_PROMPT_VERSION
+    if version.lower() in ORIGINAL_SET_NAMES:
+        return ""
+    return version
 
 
 def prompts_dir():
-    """prompts/ by default; prompts/<PROMPT_VERSION>/ when a prompt set is selected (e.g. "jp").
+    """prompts/<prompt_version()>/, or prompts/ itself for the original set.
     Each set is self-contained: every prompt file is read from the one directory."""
     version = prompt_version()
     if not version:

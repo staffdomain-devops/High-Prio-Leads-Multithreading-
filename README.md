@@ -184,7 +184,7 @@ Go to Actions → **Opportunity Call Round** → Run workflow:
 | `opportunity_id` | yes | The Opportunity to process. Its next round runs. |
 | `task_id` | no | Blank means the Opportunity's most recently completed task. |
 | `dry_run` | no (off) | Runs everything, including the Claude calls, but **writes nothing to HubSpot**. Review the `round-output-<id>` artifact. |
-| `prompt_version` | no (blank) | Prompt set to use. Blank is `prompts/` (the original). `jp` is `prompts/jp/`, see below. The webhook can pass it as `client_payload.prompt_version`. |
+| `prompt_version` | no (blank) | Prompt set to use. Blank is `jp` (`prompts/jp/`), which is what the HubSpot webhook sends, so `jp` is what runs live. `default` is `prompts/` (the original). See below. The webhook can pass it as `client_payload.prompt_version`. |
 
 Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `research.json`, `email_<contact>.json` and `finalize.json`.
 
@@ -192,12 +192,12 @@ Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `resea
 
 ## Prompt versions
 
-`prompts/` is the original and doesn't change. A variant is a full copy in `prompts/<name>/`, selected per run with `PROMPT_VERSION=<name>` (`prompt_version` input). Every prompt file (base, research, routes, specs) is read from the selected directory, so a variant can change anything without touching the default. Each `email_<contact>.json` records which set wrote it.
+`prompts/` is the original and doesn't change. A variant is a full copy in `prompts/<name>/`, selected per run with `PROMPT_VERSION=<name>` (`prompt_version` input). A blank `PROMPT_VERSION` resolves to `jp` (`DEFAULT_PROMPT_VERSION` in `scripts/utils.py`), so the webhook-triggered runs use the JP set without any change in HubSpot. `PROMPT_VERSION=default` runs the original set. Every prompt file (base, research, routes, specs) is read from the selected directory, so a variant can change anything without touching the default. Each `email_<contact>.json` records which set wrote it.
 
 | Set | What it is |
 |---|---|
-| default | The emails as described above. Email 1 doesn't mention anyone else. |
-| `jp` | Short casual Australian voice. Email 1 is under 150 words and opens with "not sure if it's you, Ben or Cara I should be speaking to" (`{{contact.who_clause}}`, from `who_clause` in `build_matrix.py`, capped at two names). Disclaimer in email 1 only, savings line in 2 and 3. Research one-liners rewritten conversationally. Details in `prompts/jp/README.md`. |
+| `default` | The original emails as described above. Email 1 doesn't mention anyone else. Select it explicitly with `prompt_version: default`. |
+| `jp` (**live default**) | Short casual Australian voice. Email 1 is under 150 words and opens with "not sure if it's you, Ben or Cara I should be speaking to" (`{{contact.who_clause}}`, from `who_clause` in `build_matrix.py`, capped at two names). Disclaimer in email 1 only, savings line in 2 and 3. Research one-liners rewritten conversationally. Details in `prompts/jp/README.md`. |
 
 ---
 

@@ -23,7 +23,7 @@ def test_connected_references_follow_call_outcome():
         other("Cara", bm.SPOKE_UNCLEAR, "Connected Interested"),
         other("Dan", bm.SPOKE_UNCLEAR, "Connected Call Back later"),
         other("Eve", bm.MISSED, "Left voicemail"),
-    ]), "City Beach")
+    ]), "City Beach", text=DEFAULT_TEXT)
     assert '"I just tried giving you a quick call. To be fair' in text
     assert "you had a quick chat with Alice" in text
     assert "you spoke with Cara, who was keen to hear more" in text
@@ -33,13 +33,13 @@ def test_connected_references_follow_call_outcome():
 
 
 def test_not_kdm_adds_sits_with_someone_else():
-    text = scenario_instructions(2, ctx(others=[other("Alice", bm.NOT_KDM, "Connected Interested")]), "City Beach")
+    text = scenario_instructions(2, ctx(others=[other("Alice", bm.NOT_KDM, "Connected Interested")]), "City Beach", text=DEFAULT_TEXT)
     assert ("you spoke with Alice, who was keen to hear more "
             "and Alice mentioned this probably sits with someone else") in text
 
 
 def test_email_3_opener_and_no_references():
-    text = scenario_instructions(3, ctx(), "City Beach")
+    text = scenario_instructions(3, ctx(), "City Beach", text=DEFAULT_TEXT)
     assert "barking up the wrong tree" in text
     assert "REFERENCE LINE: none" in text
 
@@ -47,7 +47,7 @@ def test_email_3_opener_and_no_references():
 @pytest.mark.parametrize("state", [bm.SPOKE_UNCLEAR, bm.KDM, bm.NOT_KDM])
 def test_connected_contacts_never_get_route_b(state):
     with pytest.raises(ValueError):
-        scenario_instructions(2, ctx(state), "City Beach")
+        scenario_instructions(2, ctx(state), "City Beach", text=DEFAULT_TEXT)
 
 
 # --- JP prompt set wording: facts fixed, phrasing free ---------------------------
@@ -82,7 +82,16 @@ def test_jp_email_3_wording():
     assert "REFERENCE LINE: none" in scenario_instructions(3, ctx(), "X", text=JP_TEXT)
 
 
-def test_default_text_is_the_module_constants():
+def test_default_text_is_the_module_constants(monkeypatch):
+    monkeypatch.setenv("PROMPT_VERSION", "default")
     assert scenario_instructions(2, ctx(), "X") == scenario_instructions(2, ctx(), "X", text=DEFAULT_TEXT)
     assert "barking up the wrong tree" in scenario_instructions(3, ctx(), "X", text=DEFAULT_TEXT)
     assert "Open with exactly" in scenario_instructions(2, ctx(), "X", text=DEFAULT_TEXT)
+
+
+def test_blank_prompt_version_means_jp_wording(monkeypatch):
+    """What the HubSpot webhook triggers: no prompt_version at all."""
+    monkeypatch.delenv("PROMPT_VERSION", raising=False)
+    assert scenario_instructions(2, ctx(), "X") == scenario_instructions(2, ctx(), "X", text=JP_TEXT)
+    monkeypatch.setenv("PROMPT_VERSION", "")
+    assert scenario_instructions(3, ctx(), "X") == scenario_instructions(3, ctx(), "X", text=JP_TEXT)

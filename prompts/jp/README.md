@@ -1,6 +1,6 @@
 # JP version
 
-A second prompt set, selected with `PROMPT_VERSION=jp` (workflow input `prompt_version`). The default set in `prompts/` is untouched; the pipeline loads this directory instead when the version is set. Files not listed below are byte-for-byte copies of the defaults, so this directory is self-contained.
+The live prompt set. A blank `PROMPT_VERSION` (what the HubSpot webhook sends) resolves to `jp`, so the pipeline reads this directory unless a run passes `prompt_version: default`, which selects the original set in `prompts/`. The original is untouched. Files not listed below are byte-for-byte copies of the defaults, so this directory is self-contained.
 
 What's different:
 

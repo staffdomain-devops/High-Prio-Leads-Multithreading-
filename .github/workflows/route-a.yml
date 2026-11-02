@@ -18,7 +18,7 @@ on:
         required: false
         default: "false"
       prompt_version:
-        description: Prompt set (blank = prompts/, jp = prompts/jp/)
+        description: Prompt set (blank = jp, the live default; default = prompts/, the original)
         type: string
         required: false
         default: ""

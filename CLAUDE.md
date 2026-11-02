@@ -12,7 +12,7 @@ One HubSpot Opportunity per run → 3 call rounds across its contacts → determ
 - Opportunity custom object type: `p5402982_opportunities`.
 - Disposition GUIDs in `build_matrix.py` are portal-specific. If HubSpot call outcomes change, update `DISPOSITION_LABELS` / `CONNECTED`. Any unknown outcome counts as MISSED.
 - Model: `claude-sonnet-5-5` (`scripts/claude.py`).
-- **Prompt sets.** `prompts/` is the default and stays as it is. A variant lives in `prompts/<name>/` as a complete copy (every `.md` file) and is selected with `PROMPT_VERSION=<name>` (workflow input `prompt_version`). Iterate on the variant, never on the default. Current variant: `jp` (`prompts/jp/README.md`).
+- **Prompt sets.** `prompts/` is the original and stays as it is. A variant lives in `prompts/<name>/` as a complete copy (every `.md` file) and is selected with `PROMPT_VERSION=<name>` (workflow input `prompt_version`). Blank resolves to `jp` (`DEFAULT_PROMPT_VERSION` in `scripts/utils.py`), which is what the HubSpot webhook triggers, so **`prompts/jp/` is what runs live**; `PROMPT_VERSION=default` selects `prompts/`. Iterate on the variant, never on the original.
 
 ## Test
 

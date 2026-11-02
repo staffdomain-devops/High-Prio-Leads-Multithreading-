@@ -25,7 +25,7 @@ on:
         type: boolean
         default: false
       prompt_version:
-        description: "Prompt set to use: blank = prompts/ (default), jp = prompts/jp/"
+        description: "Prompt set to use: blank = jp (prompts/jp/, the live default), default = prompts/ (the original)"
         required: false
         type: string
         default: ""
