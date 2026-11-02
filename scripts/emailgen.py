@@ -118,16 +118,52 @@ def generate(prompt, slots, raw_name):
     return emails
 
 
-def fact_check(plan, cid, emails):
+def required_names(plan, cid):
+    """First names email 1 must carry. Only when the prompt set's email 1 spec uses the who-clause
+    (prompts/jp does, prompts/ doesn't), and only the names who_clause itself would print."""
+    spec = prompts_dir() / "specs" / "email_1.md"
+    if plan.get("round") != 0 or not spec.exists() or "{{contact.who_clause}}" not in spec.read_text(encoding="utf-8"):
+        return []
+    others = ((plan.get("contexts") or {}).get(cid) or {}).get("others") or []
+    return [n for n in others if n and not isinstance(n, dict)][:bm.MAX_NAMED_OTHERS]
+
+
+def fact_check(plan, cid, emails, first_attempt_problems=None):
     """Stop an email that misstates the call facts before it reaches HubSpot. The rejected text is kept
     in rejected_<cid>.json for review; the raised error lands in the dead-letter record."""
     try:
-        factcheck.check_emails(plan, cid, emails)
+        factcheck.check_emails(plan, cid, emails, required_names(plan, cid))
     except factcheck.FactCheckError as exc:
-        write_json(f"rejected_{cid}.json", {"contact_id": cid, "round": plan["round"], "emails": emails,
-                                            "problems": str(exc).split("\n")})
+        record = {"contact_id": cid, "round": plan["round"], "emails": emails, "problems": str(exc).split("\n")}
+        if first_attempt_problems:
+            record["first_attempt_problems"] = first_attempt_problems
+        write_json(f"rejected_{cid}.json", record)
         print(f"FACT CHECK FAILED for contact {cid}:\n{exc}")
         raise
+
+
+REVISION = (
+    "\n\n---\n\n## REVISION REQUIRED\n\n"
+    "Your previous draft was refused by a fact check for these reasons:\n{problems}\n\n"
+    "Write it again and fix every one of them. Everything else above still applies. "
+    "Return the same JSON structure, nothing else."
+)
+
+
+def generate_checked(plan, cid, prompt, slots, raw_name):
+    """Generate, fact-check, and on a failure give the model one second attempt with the reasons.
+    A second failure is refused for good (rejected_<cid>.json, raised)."""
+    emails = generate(prompt, slots, raw_name)
+    try:
+        factcheck.check_emails(plan, cid, emails, required_names(plan, cid))
+        return emails
+    except factcheck.FactCheckError as exc:
+        problems = str(exc).split("\n")
+        print(f"Fact check failed for contact {cid}, asking for a revision:\n{exc}")
+    retry_prompt = prompt + REVISION.format(problems="\n".join(f"- {p}" for p in problems))
+    emails = generate(retry_prompt, slots, raw_name.replace(".txt", "_retry.txt"))
+    fact_check(plan, cid, emails, first_attempt_problems=problems)
+    return emails
 
 
 def write_contact(plan, research, cid, emails):

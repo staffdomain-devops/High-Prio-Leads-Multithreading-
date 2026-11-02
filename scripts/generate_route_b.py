@@ -165,8 +165,8 @@ def main():
     print(tokens["scenario"])
     print(f"Calling {MODEL} (prompt set: {prompt_version() or 'default'})...")
     try:
-        emails = emailgen.generate(prompt, slots, f"raw_{cid}.txt")
-        emailgen.fact_check(plan, cid, emails)   # refuses the email if it misstates who was called or what happened
+        # fact-checked; one revision is requested before an email is refused
+        emails = emailgen.generate_checked(plan, cid, prompt, slots, f"raw_{cid}.txt")
         emailgen.write_contact(plan, research, cid, emails)
     except Exception as exc:
         write_dlq(plan["opportunity_id"], cid, "generate_route_b", exc, retry_count=1)

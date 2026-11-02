@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 import build_matrix as bm  # noqa: E402
 import emailgen  # noqa: E402
+import factcheck  # noqa: E402
 import finalize_round  # noqa: E402
 import generate_route_a  # noqa: E402
 import generate_route_b  # noqa: E402
@@ -104,7 +105,14 @@ class FakeClaude:
         cid = raw_name.removeprefix("raw_").removesuffix(".txt")
         self.prompts[cid] = prompt
         slots = re.findall(r'"email_(\d)": \{"subject"', prompt.split("## OUTPUT FORMAT")[1])
-        return {f"email_{n}": {"subject": f"S{n}", "body": self.canned.get(cid, f"Body {n} for {cid}")} for n in slots}
+        base_cid = cid.removesuffix("_retry")
+        canned = self.canned.get(base_cid)
+        if isinstance(canned, list):                      # one body per attempt
+            canned = canned.pop(0) if canned else None
+        # a JP email 1 opens with the fixed who-clause sentence; the fake does what a compliant model does
+        m = re.search(r"Not sure if it's (you(?:, \w+)*(?: or [^\n.]+?)?) I should be asking, but I saw the \.\.\.", prompt)
+        opener = f"Not sure if it's {m.group(1)} I should be asking, but I saw the role. " if m else ""
+        return {f"email_{n}": {"subject": f"S{n}", "body": canned or f"{opener}Body {n} for {base_cid}"} for n in slots}
 
 
 @pytest.fixture
@@ -331,19 +339,19 @@ def test_webhook_run_with_no_prompt_version_uses_jp(env):
     mp.delenv("PROMPT_VERSION", raising=False)
     run_round(env)
     assert "## HOW JP WRITES" in fake_claude.prompts[A]
-    assert "whether it's you, Ben or Cara you should be asking" in fake_claude.prompts[A]
+    assert "Not sure if it's you, Ben or Cara I should be asking" in fake_claude.prompts[A]
     assert "Selling point picked for this person" in fake_claude.prompts[A]  # research ran under JP too
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "jp"
-    assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
+    assert contact(fake_hs, A)["hplmt_email_1"].endswith(f"Body 1 for {A}")  # the fake prefixes the JP opener
 
 
 def test_jp_prompt_set_names_other_contacts_in_email_1(env):
     fake_hs, fake_claude, tmp, mp = env
     mp.setenv("PROMPT_VERSION", "jp")
     run_round(env)
-    assert "whether it's you, Ben or Cara you should be asking" in fake_claude.prompts[A]
-    assert "whether it's you, Alice or Cara you should be asking" in fake_claude.prompts[B]
-    assert "whether it's you, Alice or Ben you should be asking" in fake_claude.prompts[C]
+    assert "Not sure if it's you, Ben or Cara I should be asking" in fake_claude.prompts[A]
+    assert "Not sure if it's you, Alice or Cara I should be asking" in fake_claude.prompts[B]
+    assert "Not sure if it's you, Alice or Ben I should be asking" in fake_claude.prompts[C]
     assert "Where the role is based: Brisbane" in fake_claude.prompts[A]
     assert "Company size: 4 staff" in fake_claude.prompts[A]
     assert "Register scales with the size" in fake_claude.prompts[A]
@@ -352,7 +360,7 @@ def test_jp_prompt_set_names_other_contacts_in_email_1(env):
     assert "## HOW JP WRITES" in fake_claude.prompts[A]
     assert "Lines JP rejected" in fake_claude.prompts[A]
     assert json.loads((tmp / f"email_{A}.json").read_text())["prompt_version"] == "jp"
-    assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
+    assert contact(fake_hs, A)["hplmt_email_1"].endswith(f"Body 1 for {A}")  # the fake prefixes the JP opener
 
 
 def test_jp_prompt_set_is_self_contained():
@@ -471,3 +479,42 @@ def test_fact_check_stops_an_email_that_misstates_a_call(env):
         mp.setenv("CONTACT_ID", cid)
         generate_route_b.main()
         assert contact(fake_hs, cid)["hplmt_email_2"] == f"Body 2 for {cid}"
+
+
+def test_jp_email_1_without_the_names_gets_one_revision_then_is_written(env):
+    fake_hs, fake_claude, tmp, mp = env
+    mp.delenv("PROMPT_VERSION", raising=False)
+    fake_claude.canned[B] = ["Not sure if it's you I should be asking, but I saw the role. How's it going?",
+                             "Not sure if it's you, Alice or Cara I should be asking, but I saw the role. How's it going?"]
+    run_round(env)
+    retry = fake_claude.prompts[f"{B}_retry"]
+    assert "## REVISION REQUIRED" in retry
+    assert "does not name Alice" in retry and "does not name Cara" in retry
+    assert contact(fake_hs, B)["hplmt_email_1"].startswith("Not sure if it's you, Alice or Cara")
+    assert not (tmp / f"rejected_{B}.json").exists()
+    # the others passed first time
+    assert f"{A}_retry" not in fake_claude.prompts and f"{C}_retry" not in fake_claude.prompts
+
+
+def test_jp_email_1_still_nameless_after_revision_is_refused(env):
+    fake_hs, fake_claude, tmp, mp = env
+    mp.delenv("PROMPT_VERSION", raising=False)
+    fake_claude.canned[B] = ["Not sure if it's you I should be asking. Body.", "Still not naming anyone. Body."]
+    mp.setenv("TASK_ID", "")
+    plan_round.main()
+    research_opportunity.main()
+    mp.setenv("CONTACT_ID", B)
+    with pytest.raises(factcheck.FactCheckError, match="does not name Alice"):
+        generate_route_a.main()
+    rejected = json.loads((tmp / f"rejected_{B}.json").read_text())
+    assert rejected["first_attempt_problems"] and any("Cara" in p for p in rejected["problems"])
+    assert contact(fake_hs, B).get("hplmt_email_1", "") == ""
+
+
+def test_default_set_email_1_has_no_required_names(env):
+    """The original prompts/ email 1 never names anyone, so the rule must not apply to it."""
+    fake_hs, fake_claude, tmp, mp = env
+    mp.setenv("PROMPT_VERSION", "default")
+    run_round(env)
+    assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
+    assert f"{A}_retry" not in fake_claude.prompts

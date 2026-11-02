@@ -129,3 +129,26 @@ def test_check_emails_round_3_allows_nobody():
     assert factcheck.check_emails(plan, "101", {4: {"subject": "x", "body": "This is what we do."}, 5: {"subject": "x", "body": "Leaving it with you."}})
     with pytest.raises(factcheck.FactCheckError, match="mentions Cara"):
         factcheck.check_emails(plan, "101", {4: {"subject": "x", "body": "Cara might know."}, 5: {"subject": "x", "body": "ok"}})
+
+
+def test_required_names_must_all_appear_in_email_1():
+    plan = plan_for("A", 0, ["Ben", "Cara"])
+    ok = {1: {"subject": "Role", "body": "Not sure if it's you, Ben or Cara I should be asking."}}
+    assert factcheck.check_emails(plan, "101", ok, required_names=["Ben", "Cara"])
+    with pytest.raises(factcheck.FactCheckError) as exc:
+        factcheck.check_emails(plan, "101", {1: {"subject": "Role", "body": "Not sure if it's you I should be asking."}},
+                               required_names=["Ben", "Cara"])
+    assert "does not name Ben" in str(exc.value) and "does not name Cara" in str(exc.value)
+
+
+def test_required_names_rule_is_off_by_default_and_only_for_email_1():
+    plan = plan_for("A", 0, ["Ben", "Cara"])
+    assert factcheck.check_emails(plan, "101", {1: {"subject": "Role", "body": "Not sure if it's you I should be asking."}})
+    plan3 = plan_for("A", 3, [])
+    assert factcheck.check_emails(plan3, "101", {4: {"subject": "x", "body": "This is what we do."}, 5: {"subject": "x", "body": "Bye."}},
+                                  required_names=["Ben"])
+
+
+def test_missing_names_matches_whole_words():
+    assert factcheck.missing_names("Benjamin and Carapace are here.", ["Ben", "Cara"]) == ["Ben", "Cara"]
+    assert factcheck.missing_names("Ben, Cara.", ["Ben", "Cara"]) == []

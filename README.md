@@ -60,7 +60,7 @@ The pool is every contact associated with the Opportunity at round 0, **except**
 
 Besides calls, **an unsubscribe** (`hs_email_optout`) takes a contact out of the pool (`OPTED_OUT`), and they're never mentioned in other people's emails.
 
-**Every email is fact-checked before it is written.** `scripts/factcheck.py` reads the finished text and refuses it if it names anyone outside the allowed list, says we reached someone who was missed (or missed someone who connected), says an unconfirmed contact pointed us elsewhere, or claims a call in an email that must not reference calls (1, 4, 5). The rejected text is kept as `rejected_<contact>.json` in the run output, the dead-letter record carries the reasons, and the other contacts' emails are unaffected. Re-running the round retries that contact.
+**Every email is fact-checked before it is written.** `scripts/factcheck.py` reads the finished text and refuses it if it names anyone outside the allowed list, says we reached someone who was missed (or missed someone who connected), says an unconfirmed contact pointed us elsewhere, or claims a call in an email that must not reference calls (1, 4, 5). When the prompt set's email 1 names the other people on the list (the `jp` who-clause), an email 1 that leaves any of them out fails too. On a failure the model gets one revision request with the reasons appended to the same prompt (`raw_<contact>_retry.txt`); if that draft fails as well, the text is kept as `rejected_<contact>.json` in the run output (with both attempts' reasons), the dead-letter record carries them, and the other contacts' emails are unaffected. Re-running the round retries that contact.
 
 **Replies are handled in HubSpot, not here.** If a contact replies mid-sequence, the whole sequence exits on the HubSpot side, so the pipeline never reads email or meeting records (and its token doesn't need email scopes).
 
@@ -197,7 +197,7 @@ Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `resea
 | Set | What it is |
 |---|---|
 | `default` | The original emails as described above. Email 1 doesn't mention anyone else. Select it explicitly with `prompt_version: default`. |
-| `jp` (**live default**) | Short casual Australian voice. Email 1 is under 150 words and opens with "not sure if it's you, Ben or Cara I should be speaking to" (`{{contact.who_clause}}`, from `who_clause` in `build_matrix.py`, capped at two names). Disclaimer in email 1 only, savings line in 2 and 3. Research one-liners rewritten conversationally. Details in `prompts/jp/README.md`. |
+| `jp` (**live default**) | Short casual Australian voice. Email 1 is under 90 words and its first sentence is fixed: "Not sure if it's you, Ben or Cara I should be asking, but I saw the ..." (`{{contact.who_clause}}`, from `who_clause` in `build_matrix.py`, capped at two names; the fact check refuses an email 1 that drops those names). Disclaimer in email 1 only, savings line in 2 and 3. Research one-liners rewritten conversationally. Details in `prompts/jp/README.md`. |
 
 ---
 

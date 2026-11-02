@@ -13,7 +13,9 @@ Rules, per other pool contact whose first name appears in the body:
     NOT_KDM)                             -> the sentence must not say we missed them
   - allowed, SPOKE_UNCLEAR               -> the sentence must not say they pointed us elsewhere
 Plus, for emails that are not allowed to mention calls at all (Route A: 1, 4, 5),
-any call claim in the body fails.
+any call claim in the body fails. And when the caller says email 1 must name the
+other people on the list (`required_names`, from the prompt set's who-clause), a
+body that leaves any of them out fails.
 
 Names shorter than 3 letters, or equal to the recipient's own first name, are not
 checked (too many false matches). A failure is meant to stop that one email and
@@ -137,8 +139,15 @@ def allowed_others_for(plan, cid):
     return {}                                               # route A, emails 4/5: nobody
 
 
-def check_emails(plan, cid, emails):
-    """Check every email for this contact against the plan. Raises FactCheckError with all problems."""
+def missing_names(body, required_names):
+    """The required first names that the body never mentions."""
+    sentences = _sentences(body)
+    return [n for n in required_names if n and not any(_mentions(s, n) for s in sentences)]
+
+
+def check_emails(plan, cid, emails, required_names=()):
+    """Check every email for this contact against the plan. Raises FactCheckError with all problems.
+    `required_names`: first names email 1 must mention (the prompt set's who-clause); empty means no such rule."""
     matrix = plan.get("matrix_after") or {}
     pool = [c.get("first_name", "") for c in (matrix.get("contacts") or {}).values()]
     recipient = (plan.get("contacts", {}).get(cid) or {}).get("firstname", "")
@@ -151,6 +160,9 @@ def check_emails(plan, cid, emails):
         for p in check_body(email.get("subject", ""), recipient, pool, allowed, calls_allowed):
             if "must not be referenced" in p or "reached" in p:
                 problems.append(f"email_{n} subject: {p}")
+        if int(n) == 1 and required_names:
+            for name in missing_names(email.get("body", ""), required_names):
+                problems.append(f"email_{n}: does not name {name}, who the opening sentence must name")
     if problems:
         raise FactCheckError("\n".join(problems))
     return True
