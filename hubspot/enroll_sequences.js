@@ -20,7 +20,7 @@
 // Secret:
 //   sales_crm_api_token — needs automation.sequences.enrollments.write, automation.sequences.read,
 //                         crm.objects.owners.read, sales-email-read, contacts + custom object read
-// Runtime: Node 20.
+// Runtime: Node 20 or Node 24.
 
 const axios = require('axios');
 
@@ -37,7 +37,15 @@ const AUTO_REPLY = new RegExp([
   'returned mail', 'message not delivered',
 ].map(p => `(?:${p})`).join('|'), 'i');
 
+// HubSpot's Node 20 runtime passes a callback; Node 24 expects the result to be returned.
+// Returning it and calling the callback only when present works on both.
 exports.main = async (event, callback) => {
+  const result = await run(event);
+  if (typeof callback === 'function') callback(result);
+  return result;
+};
+
+async function run(event) {
   const opportunityId = String(event.inputFields.hs_object_id || '').trim();
   const hs = axios.create({
     baseURL: 'https://api.hubapi.com',
@@ -48,12 +56,12 @@ exports.main = async (event, callback) => {
     { params: { properties: 'hpl_call_round,hubspot_owner_id,hpl_call_matrix' } })).data.properties;
   const round = opp.hpl_call_round;
   if (!FORCE_SLOT && (round === null || round === undefined || round === '')) {
-    return callback({ outputFields: { status: 'no_round_yet', enrolled: 0 } });
+    return { outputFields: { status: 'no_round_yet', enrolled: 0 } };
   }
   const slot = FORCE_SLOT || Number(round) + 1;
   const sequenceId = SEQUENCES[slot];
   if (!sequenceId) {
-    return callback({ outputFields: { status: `no_sequence_for_email_${slot}`, enrolled: 0 } });
+    return { outputFields: { status: `no_sequence_for_email_${slot}`, enrolled: 0 } };
   }
   let sinceMs = 0;
   try { sinceMs = Number(JSON.parse(opp.hpl_call_matrix || '{}').started_at) || 0; } catch (_) { sinceMs = 0; }
@@ -161,7 +169,7 @@ exports.main = async (event, callback) => {
     }
   }
 
-  callback({
+  return {
     outputFields: {
       status: failed.length ? 'partial' : 'ok',
       email_slot: slot,
@@ -173,5 +181,5 @@ exports.main = async (event, callback) => {
       owner_errors: [...new Set(ownerErrors)].join(' | ').slice(0, 1000),
       reply_check_errors: replyCheckErrors.join(' | ').slice(0, 1000),
     },
-  });
-};
+  };
+}

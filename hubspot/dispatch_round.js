@@ -11,14 +11,22 @@
 // Secrets:
 //   github_PAT            — GitHub fine-grained token, this repo only, "Contents: read & write"
 //   sales_crm_api_token   — existing HubSpot private app token (tasks + custom object read)
-// Runtime: Node 20.
+// Runtime: Node 20 or Node 24.
 
 const axios = require('axios');
 
 const REPO = 'staffdomain-devops/High-Prio-Leads-Multithreading-';
 const OPPORTUNITY = '2-42053860';
 
+// HubSpot's Node 20 runtime passes a callback; Node 24 expects the result to be returned.
+// Returning it and calling the callback only when present works on both.
 exports.main = async (event, callback) => {
+  const result = await run(event);
+  if (typeof callback === 'function') callback(result);
+  return result;
+};
+
+async function run(event) {
   const opportunityId = String(event.inputFields.hs_object_id || '').trim();
   const hs = axios.create({
     baseURL: 'https://api.hubapi.com',
@@ -40,7 +48,7 @@ exports.main = async (event, callback) => {
     .sort((a, b) => new Date(b.properties.hs_createdate) - new Date(a.properties.hs_createdate))[0];
 
   if (task && task.properties.hs_task_status !== 'COMPLETED') {
-    return callback({ outputFields: { status: 'task_not_completed', task_id: task.id } });
+    return { outputFields: { status: 'task_not_completed', task_id: task.id } };
   }
   const taskId = task ? task.id : '';
 
@@ -63,5 +71,5 @@ exports.main = async (event, callback) => {
     },
   );
 
-  callback({ outputFields: { status: 'dispatched', task_id: taskId } });
-};
+  return { outputFields: { status: 'dispatched', task_id: taskId } };
+}
