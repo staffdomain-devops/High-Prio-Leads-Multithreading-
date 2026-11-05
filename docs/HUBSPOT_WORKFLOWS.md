@@ -73,6 +73,12 @@ There's one workflow per email: `hplmt_email_1` … `hplmt_email_5`.
 
 There's no delay or check needed. The pipeline only writes `hplmt_email_N` for contacts who should get it. Dropped contacts are cleared and never enrol.
 
+## Replies
+
+Each email is its own one-step sequence, so HubSpot's "unenrol when a contact replies" removes nobody from the next email. The pipeline handles replies instead: at every round it reads the emails logged on each contact still in the pool and, if anyone has replied since the sequence started (incoming, from them or in one of our threads, not an auto-responder), it stops the whole sequence: empty task title, status `replied`, warning on the run naming who replied. The rep continues from the inbox.
+
+The pipeline only runs at round boundaries, and email 5 goes out after a delay with no round in between, so the enrol action (`hubspot/enroll_sequences.js`) applies the same reply check before every enrolment. Both need the `sales-email-read` scope on `sales_crm_api_token`. If the check itself fails, the enrol action still sends and reports the error in `reply_check_errors`, so a scope problem cannot silently stop a round.
+
 ## "Call everyone" check (rep process)
 
 A contact with **no call logged** in the task window gets **no email that round**, isn't mentioned in other people's emails, and is named in a warning on the GitHub run. The rep should log a call for every contact listed in the task notes before completing the task. The only exception is once a KDM is confirmed, when the rest don't need calling.

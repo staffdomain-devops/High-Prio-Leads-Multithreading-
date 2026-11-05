@@ -5,8 +5,13 @@ to the call matrix, and writes plan.json for the route + finalize jobs.
 Round = hpl_call_round + 1 (empty -> round 0). Round 1-3 calls are the latest
 call per contact inside the call task's created -> completed window.
 
+A reply by email from anyone still in the pool (incoming, after the sequence started, from
+the contact or in one of our threads, not an auto-responder — scripts/replies.py) stops the
+whole sequence: empty task title, status "replied", rep continues from the inbox.
+
 Outputs (GITHUB_OUTPUT): skip, round, route (A|B|none), contacts (JSON list),
-uncalled (names of live contacts with no call this round — run warning).
+uncalled (names of live contacts with no call this round — run warning),
+replied (names of contacts whose reply stopped the sequence — run warning).
 """
 
 import json
@@ -17,6 +22,7 @@ import traceback
 
 import build_matrix as bm
 import hs
+import replies
 from utils import parse_ts, set_output, write_dlq, write_json
 
 OPP_PROPS = [
@@ -36,6 +42,9 @@ COMPANY_PROPS = [
 ]
 TASK_PROPS = ["hs_createdate", "hs_task_completion_date", "hs_task_status", "hs_task_subject", "hs_task_type"]
 CALL_PROPS = ["hs_call_disposition", "hpl_call_kdm_status", "hs_timestamp", "hs_createdate"]
+# Needs the sales-email-read scope on the token
+EMAIL_PROPS = ["hs_email_direction", "hs_email_subject", "hs_email_from_email", "hs_email_thread_id",
+               "hs_timestamp", "hs_createdate"]
 
 ROUND_TASK_MARKER = f"of {bm.TOTAL_ROUNDS} · "
 
@@ -46,6 +55,7 @@ def skip(reason):
     set_output("route", "none")
     set_output("contacts", "[]")
     set_output("uncalled", "")
+    set_output("replied", "")
     sys.exit(0)
 
 
@@ -82,6 +92,23 @@ def fetch_calls(contact_id):
             "kdm_status": p.get("hpl_call_kdm_status"),
         }
         for cid, p in calls.items()
+    ]
+
+
+def fetch_emails(contact_id):
+    """Every email logged on the contact, in the shape replies.py expects."""
+    email_ids = hs.associated_ids("contacts", contact_id, "emails")
+    emails = hs.batch_read("emails", email_ids, EMAIL_PROPS) if email_ids else {}
+    return [
+        {
+            "id": eid,
+            "direction": p.get("hs_email_direction"),
+            "timestamp": parse_ts(p.get("hs_timestamp")) or parse_ts(p.get("hs_createdate")) or 0,
+            "from_email": p.get("hs_email_from_email"),
+            "subject": p.get("hs_email_subject"),
+            "thread_id": p.get("hs_email_thread_id"),
+        }
+        for eid, p in emails.items()
     ]
 
 
@@ -153,7 +180,18 @@ def main():
             live = bm.recipients(before)
             calls_by_contact = {cid: fetch_calls(cid) for cid in live}
             opted_out = {cid for cid in live if contacts.get(cid, {}).get("hs_email_optout") == "true"}
-            after = bm.advance(before, round_no, calls_by_contact, window, opted_out)
+            # Replies since the sequence started. Older matrices without started_at fall back
+            # to the first round's task window start
+            since_ms = before.get("started_at") or window[0]
+            replied = replies.replies_by_contact(
+                {cid: fetch_emails(cid) for cid in live},
+                {cid: contacts.get(cid, {}).get("email") for cid in live},
+                since_ms,
+            )
+            for cid, e in replied.items():
+                print(f"  Reply from {contacts.get(cid, {}).get('firstname')} ({cid}): "
+                      f"{e['subject']!r} at {e['timestamp']} (email {e['id']})")
+            after = bm.advance(before, round_no, calls_by_contact, window, opted_out, set(replied))
 
         company_ids = hs.associated_ids(hs.OPPORTUNITY, opp_id, "companies")
         company = hs.get_object("companies", company_ids[0], COMPANY_PROPS) if company_ids else {}
@@ -181,6 +219,7 @@ def main():
             "matrix_after": after,
             "recipients": recipients,
             "uncalled": uncalled,
+            "replied": after.get("replied_contact_ids") or [],
             "contexts": {cid: context_fn(after, cid) for cid in recipients},
             "clear_slots": bm.slots_to_clear(before, after) if before else {},
             "release": bm.release_contacts(before, after) if before else [],
@@ -197,6 +236,11 @@ def main():
             f"{after['contacts'][c]['first_name']} {after['contacts'][c]['last_name']}".strip() for c in uncalled)
         if uncalled:
             print(f"WARNING: no call logged this round for {uncalled_names} — no email sent to them")
+        replied_names = ", ".join(
+            f"{after['contacts'][c]['first_name']} {after['contacts'][c]['last_name']}".strip()
+            for c in (after.get("replied_contact_ids") or []))
+        if replied_names:
+            print(f"STOP: {replied_names} replied by email — sequence stopped, the rep continues from the inbox")
         print(f"Next task: {title or '(none)'}")
 
         set_output("skip", "false")
@@ -204,6 +248,7 @@ def main():
         set_output("route", route)
         set_output("contacts", json.dumps(recipients))
         set_output("uncalled", uncalled_names)
+        set_output("replied", replied_names)
 
     except SystemExit:
         raise

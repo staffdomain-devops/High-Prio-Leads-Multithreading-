@@ -152,6 +152,51 @@ def test_everyone_connects_without_kdm_leaves_nobody():
     assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
 
 
+# --- replies ------------------------------------------------------------------
+
+def test_reply_stops_everyone_and_hands_over_to_the_rep():
+    before = bm.new_matrix(CONTACTS)
+    m = bm.advance(before, 1, {cid: [call(1, NO_ANSWER)] for cid in (A, B, C)}, WINDOWS[1], replied={B})
+    assert states(m) == {A: bm.FROZEN, B: bm.REPLIED, C: bm.FROZEN}
+    assert m["status"] == bm.STATUS_REPLIED and m["replied_contact_ids"] == [B]
+    assert m["contacts"][B]["history"][-1]["outcome"] == "Replied by email"
+    # Nothing else goes out: no recipients, no next task, every slot cleared, every lock released
+    assert bm.recipients(m) == [] and bm.email_recipients(m) == []
+    assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
+    assert bm.slots_to_clear(before, m) == {A: [2, 3, 4, 5], B: [2, 3, 4, 5], C: [2, 3, 4, 5]}
+    assert set(bm.release_contacts(before, m)) == {A, B, C}
+    with pytest.raises(ValueError):
+        bm.advance(m, 2, {}, WINDOWS[2])
+
+
+def test_reply_beats_a_missed_call_and_an_unsubscribe():
+    m = bm.new_matrix(CONTACTS)
+    m = bm.advance(m, 1, {A: [call(1, VOICEMAIL)]}, WINDOWS[1], opted_out={A}, replied={A})
+    assert m["contacts"][A]["state"] == bm.REPLIED and m["status"] == bm.STATUS_REPLIED
+
+
+def test_reply_from_a_contact_who_connected_as_non_kdm_still_stops_everyone():
+    m = bm.new_matrix(CONTACTS)
+    m = bm.advance(m, 1, {A: [call(1, CONNECTED, "No")], B: [call(1, NO_ANSWER)]}, WINDOWS[1], replied={A})
+    assert states(m) == {A: bm.REPLIED, B: bm.FROZEN, C: bm.FROZEN}
+    assert m["status"] == bm.STATUS_REPLIED
+
+
+def test_kdm_reached_in_the_same_round_outranks_a_reply():
+    m = bm.new_matrix(CONTACTS)
+    m = bm.advance(m, 1, {A: [call(1, CONNECTED, "Yes")], B: [call(1, NO_ANSWER)]}, WINDOWS[1], replied={B})
+    assert m["status"] == bm.STATUS_KDM_FOUND and m["kdm_contact_id"] == A
+    assert states(m) == {A: bm.KDM, B: bm.REPLIED, C: bm.FROZEN}
+    assert bm.recipients(m) == []
+
+
+def test_reply_from_someone_already_out_of_the_pool_changes_nothing():
+    m = bm.new_matrix(CONTACTS)
+    m = run_round(m, 1, {A: call(1, CONNECTED, "No"), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
+    m = bm.advance(m, 2, {B: [call(2, NO_ANSWER)], C: [call(2, NO_ANSWER)]}, WINDOWS[2], replied={A})
+    assert m["status"] == bm.STATUS_ACTIVE and bm.recipients(m) == [B, C]
+
+
 def test_kdm_yes_on_non_connected_call_is_ignored():
     m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, VOICEMAIL, "Yes")})
     assert states(m)[A] == bm.MISSED

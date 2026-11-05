@@ -43,6 +43,7 @@ class FakeHubSpot:
             },
             "tasks": {},
             "calls": {},
+            "emails": {},
         }
         self.assoc = {(hs.OPPORTUNITY, OPP, "contacts"): [A, B, C], (hs.OPPORTUNITY, OPP, "companies"): ["500"],
                       (hs.OPPORTUNITY, OPP, "tasks"): []}
@@ -85,6 +86,15 @@ class FakeHubSpot:
         self.objects["calls"][call_id] = {"hs_call_disposition": disposition, "hpl_call_kdm_status": kdm_status,
                                           "hs_timestamp": str(start + 3600_000)}
         self.assoc.setdefault(("contacts", contact_id, "calls"), []).append(call_id)
+
+    def add_email(self, contact_id, direction, subject, from_email, day, thread="thr-1"):
+        """Email logged on the contact at 12:00 on 2026-10-<day> (after that day's task window)."""
+        email_id = f"e{len(self.objects['emails'])}"
+        self.objects["emails"][email_id] = {"hs_email_direction": direction, "hs_email_subject": subject,
+                                            "hs_email_from_email": from_email, "hs_email_thread_id": thread,
+                                            "hs_timestamp": f"2026-10-{day:02d}T12:00:00Z"}
+        self.assoc.setdefault(("contacts", contact_id, "emails"), []).append(email_id)
+        return email_id
 
 
 class FakeClaude:
@@ -264,6 +274,43 @@ def test_unsubscribe_stops_that_contact(env):
     assert plan["recipients"] == [A, B]
     assert "Cara" not in fake_claude.prompts[A] and "Cara" not in fake_claude.prompts[B]  # C is never mentioned
     assert contact(fake_hs, C)["hplmt_email_2"] == "" and contact(fake_hs, C)["hplmt_active_opportunity_id"] == ""
+
+
+def test_reply_stops_the_sequence_for_everyone(env):
+    fake_hs, fake_claude, _, _ = env
+    run_round(env)
+    opp = fake_hs.objects[hs.OPPORTUNITY][OPP]
+    # The fake data lives in October 2026; backdate the sequence start to match
+    matrix = json.loads(opp["hpl_call_matrix"])
+    matrix["started_at"] = plan_round.parse_ts("2026-10-20T00:00:00Z")
+    opp["hpl_call_matrix"] = json.dumps(matrix)
+    contact(fake_hs, B)["email"] = "ben@example.com"
+
+    # Ben replies to email 1. Alice only has a HubSpot notification logged, Cara an out-of-office
+    fake_hs.add_email(B, "EMAIL", "Junior Buying Assistant, Brisbane", "rep@staffdomain.com", 21, thread="thr-b")
+    fake_hs.add_email(B, "INCOMING_EMAIL", "Re: Junior Buying Assistant, Brisbane", "ben@example.com", 21, thread="thr-b")
+    fake_hs.add_email(A, "INCOMING_EMAIL", 'You\'ve been assigned the task "Deal: ..."',
+                      "noreply@notifications.hubspot.com", 21, thread="hs-notif")
+    fake_hs.add_email(C, "INCOMING_EMAIL", "Automatic reply: Junior Buying Assistant", "cara@example.com", 21,
+                      thread="thr-c")
+    t1 = fake_hs.add_task("t1", 21)
+    for cid in (A, B, C):
+        fake_hs.add_call(cid, t1, NO_ANSWER)
+
+    plan = run_round(env, t1)
+    states = {cid: plan["matrix_after"]["contacts"][cid]["state"] for cid in (A, B, C)}
+    assert states == {A: "FROZEN", B: "REPLIED", C: "FROZEN"}
+    assert plan["matrix_after"]["status"] == "replied" and plan["replied"] == [B]
+    assert plan["recipients"] == [] and plan["route"] == "none" and fake_claude.prompts == {}
+    # Round advanced, no next task, every remaining slot cleared, every lock released
+    assert opp["hpl_call_round"] == "1" and opp["hpl_next_call_task_title"] == ""
+    for cid in (A, B, C):
+        assert contact(fake_hs, cid)["hplmt_email_2"] == "" and contact(fake_hs, cid)["hplmt_email_5"] == ""
+        assert contact(fake_hs, cid)["hplmt_active_opportunity_id"] == ""
+    # A later task completion is a no-op
+    t2 = fake_hs.add_task("t2", 23)
+    assert run_round(env, t2) is None
+    assert opp["hpl_call_round"] == "1"
 
 
 def test_uncalled_contact_gets_no_email_and_is_not_referenced(env):

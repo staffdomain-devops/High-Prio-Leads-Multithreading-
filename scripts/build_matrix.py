@@ -45,8 +45,9 @@ SPOKE_UNCLEAR = "SPOKE_UNCLEAR"  # connected, KDM unclear — stops, still refer
 NOT_KDM       = "NOT_KDM"        # connected, confirmed not the KDM — stops, still referenced
 KDM           = "KDM"            # connected, confirmed KDM — the whole sequence stops
 OPTED_OUT     = "OPTED_OUT"      # not interested, not the KDM — stops, never referenced
-FROZEN        = "FROZEN"         # stopped because the KDM was reached
+FROZEN        = "FROZEN"         # stopped because the KDM was reached or someone replied
 CLOSED_LOST   = "CLOSED_LOST"    # the KDM said not interested — the whole sequence stops
+REPLIED       = "REPLIED"        # replied by email — the whole sequence stops, the rep owns the thread
 
 LIVE_STATES = {PENDING, MISSED}
 REFERENCEABLE_STATES = {MISSED, SPOKE_UNCLEAR, NOT_KDM}
@@ -54,6 +55,7 @@ REFERENCEABLE_STATES = {MISSED, SPOKE_UNCLEAR, NOT_KDM}
 STATUS_ACTIVE      = "active"
 STATUS_KDM_FOUND   = "kdm_found"    # terminal: the rep has the KDM, no more emails
 STATUS_CLOSED_LOST = "closed_lost"  # terminal
+STATUS_REPLIED     = "replied"      # terminal: a contact wrote back, the rep takes it from the inbox
 
 ICP_TIERS = ("Prime", "Core", "Opportunistic", "Non-ICP")
 
@@ -98,6 +100,7 @@ def new_matrix(contacts, started_at=None):
         "started_at": started_at,
         "status": STATUS_ACTIVE,
         "kdm_contact_id": None,
+        "replied_contact_ids": [],
         "order": order,
         "contacts": {
             cid: {
@@ -142,11 +145,15 @@ def _history_entry(round_no, call, state, outcome=None):
     }
 
 
-def advance(matrix, round_no, calls_by_contact, window, opted_out=frozenset()):
+def advance(matrix, round_no, calls_by_contact, window, opted_out=frozenset(), replied=frozenset()):
     """
     Apply round `round_no`'s calls. window = (start_ms, end_ms) of the round's task.
     opted_out: contacts who unsubscribed from email.
-    Replies are handled outside the pipeline (a reply exits the whole sequence in HubSpot).
+    replied: contacts who replied by email since the sequence started (see replies.py).
+    A reply from anyone still in the pool stops the whole sequence: the rep owns the
+    conversation now, and emails to the others would describe them as unreached.
+    A decisive call result in the same round (KDM reached, KDM not interested) still
+    sets the status.
     """
     if round_no != matrix["round"] + 1 or not 1 <= round_no <= TOTAL_ROUNDS:
         raise ValueError(f"cannot apply round {round_no} to a matrix at round {matrix['round']}")
@@ -158,6 +165,7 @@ def advance(matrix, round_no, calls_by_contact, window, opted_out=frozenset()):
     start_ms, end_ms = window
 
     decisive = None
+    replied_now = []
     for cid in m["order"]:
         contact = m["contacts"][cid]
         if contact["state"] not in LIVE_STATES:
@@ -165,9 +173,12 @@ def advance(matrix, round_no, calls_by_contact, window, opted_out=frozenset()):
         call = latest_call_in_window(calls_by_contact.get(cid, []), start_ms, end_ms)
         state = classify_call(call)
         outcome = None
-        # A call result decides first (a reached KDM still ends the sequence); otherwise
-        # an unsubscribe takes the contact out of the pool
-        if state == MISSED and cid in opted_out:
+        # A decisive call result wins. Otherwise a reply beats whatever the call said, and
+        # an unsubscribe takes a missed contact out of the pool
+        if state not in (KDM, CLOSED_LOST) and cid in replied:
+            state, outcome = REPLIED, "Replied by email"
+            replied_now.append(cid)
+        elif state == MISSED and cid in opted_out:
             state, outcome = OPTED_OUT, "Unsubscribed"
         contact["state"] = state
         contact["history"].append(_history_entry(round_no, call, state, outcome))
@@ -184,6 +195,13 @@ def advance(matrix, round_no, calls_by_contact, window, opted_out=frozenset()):
             m["kdm_contact_id"] = decisive
         else:
             m["status"] = STATUS_CLOSED_LOST
+    elif replied_now:
+        # Someone wrote back. Nobody gets another email; the rep continues from the inbox
+        for cid in m["order"]:
+            if m["contacts"][cid]["state"] in LIVE_STATES:
+                m["contacts"][cid]["state"] = FROZEN
+        m["status"] = STATUS_REPLIED
+        m["replied_contact_ids"] = replied_now
     return m
 
 

@@ -74,6 +74,14 @@ jobs:
         run: |
           echo "::warning title=Round ${{ steps.plan.outputs.round }} · Opportunity ${OPPORTUNITY_ID}: no call logged::No call was logged for ${UNCALLED} in this round's task window, so they were not emailed this round."
 
+      # A contact wrote back: the sequence stops for everyone and the rep owns the thread
+      - name: "Warn: reply received, sequence stopped"
+        if: steps.plan.outputs.replied != ''
+        env:
+          REPLIED: ${{ steps.plan.outputs.replied }}
+        run: |
+          echo "::warning title=Round ${{ steps.plan.outputs.round }} · Opportunity ${OPPORTUNITY_ID}: reply received::${REPLIED} replied by email, so the call sequence has stopped for everyone on this Opportunity. Pick the conversation up from the inbox."
+
       - name: Upload plan
         if: steps.plan.outputs.skip == 'false'
         uses: actions/upload-artifact@v4

@@ -56,13 +56,14 @@ The pool is every contact associated with the Opportunity at round 0, **except**
 | Connected, Connected Interested, Connected Call Back later | Yes | `KDM` | **The whole sequence stops** for everyone, including the KDM. |
 | Connected Not Interested | No / Unclear / blank | `OPTED_OUT` | **Stops.** **Never referenced.** |
 | Connected Not Interested | Yes | `CLOSED_LOST` | **The whole sequence stops.** |
-| (the KDM was reached) | n/a | `FROZEN` | Stops. Never referenced. |
+| (the KDM was reached, or someone replied) | n/a | `FROZEN` | Stops. Never referenced. |
+| (replied by email) | n/a | `REPLIED` | **The whole sequence stops.** The rep continues from the inbox. |
 
 Besides calls, **an unsubscribe** (`hs_email_optout`) takes a contact out of the pool (`OPTED_OUT`), and they're never mentioned in other people's emails.
 
 **Every email is fact-checked before it is written.** `scripts/factcheck.py` reads the finished text and refuses it if it names anyone outside the allowed list, says we reached someone who was missed (or missed someone who connected), says an unconfirmed contact pointed us elsewhere, or claims a call in an email that must not reference calls (1, 4, 5). When the prompt set's email 1 names the other people on the list (the `jp` who-clause), an email 1 that leaves any of them out fails too. On a failure the model gets one revision request with the reasons appended to the same prompt (`raw_<contact>_retry.txt`); if that draft fails as well, the text is kept as `rejected_<contact>.json` in the run output (with both attempts' reasons), the dead-letter record carries them, and the other contacts' emails are unaffected. Re-running the round retries that contact.
 
-**Replies are handled in HubSpot, not here.** If a contact replies mid-sequence, the whole sequence exits on the HubSpot side, so the pipeline never reads email or meeting records (and its token doesn't need email scopes).
+**A reply stops the whole sequence.** At each round the plan step reads the emails logged on every contact still in the pool (`scripts/replies.py`, pure and tested in `tests/test_replies.py`). An email counts as a reply when it is incoming, arrived after the sequence started, is from the contact (or sits in the thread of an email we sent them), and its subject is not an auto-responder (out of office, automatic reply, undeliverable and the like; whole phrases only, so "Re: Automotive Technician role" still counts). Anyone who replied becomes `REPLIED`, everyone else still in the pool is `FROZEN`, the status becomes `replied`, the next task title is empty and the run shows a warning naming them. A KDM call result in the same round still wins for the status. The rep owns the conversation from there. Each email is its own one-step HubSpot sequence, so HubSpot's own "unenrol on reply" removes nothing; the HubSpot enrol action applies the same rule as a backstop for the gap between emails 4 and 5. The token needs the `sales-email-read` scope for this; a reply only exists for the pipeline once HubSpot has logged it, which needs the sender's connected inbox.
 
 **No call logged:** a pool contact with no call in the round's task window stays in the pool but **gets no email that round**, because the email would falsely claim a call. They're also left out of everyone else's references, they stay on the next call task, and the run shows a warning naming them.
 
@@ -74,7 +75,7 @@ Rules:
 
 ### Opportunity status
 
-`active` → `kdm_found` or `closed_lost`. Both are terminal: no further emails or tasks.
+`active` → `kdm_found`, `closed_lost` or `replied`. All three are terminal: no further emails or tasks.
 
 ---
 
