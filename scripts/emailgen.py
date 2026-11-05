@@ -16,7 +16,7 @@ import hs
 from claude import generate_json
 from utils import (clean_text, is_dry_run, prompt_version, prompts_dir, read_json, safe_truncate,
                    substitute_tokens, temp_path, write_json)
-MAX_TOKENS = 4096
+MAX_TOKENS = 16000  # Sonnet 5.5 thinks by default and thinking counts against max_tokens; 4096 left too little room for the JSON
 
 SYSTEM = (
     "You are writing personalised sales emails in strict Australian English. "

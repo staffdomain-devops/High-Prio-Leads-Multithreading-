@@ -13,7 +13,7 @@ from datetime import date
 
 from claude import generate_json, MODEL
 from utils import prompt_version, prompts_dir, read_json, substitute_tokens, write_dlq, write_json
-MAX_TOKENS = 4096
+MAX_TOKENS = 16000  # Sonnet 5.5 thinks by default and thinking counts against max_tokens; 4096 left too little room for the JSON
 
 SYSTEM = (
     "You are a research analyst for an offshore staffing company. "
