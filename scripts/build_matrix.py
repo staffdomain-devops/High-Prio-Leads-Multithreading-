@@ -10,6 +10,7 @@ Nothing here talks to HubSpot or Claude, so every scenario is unit-tested
 """
 
 import copy
+import re
 
 TOTAL_ROUNDS = 3
 
@@ -37,6 +38,33 @@ CONNECTED = {
     "d4d8824d-3110-441b-9db1-fde9d44cb784",  # Connected Call Back later
 }
 # Every other disposition (Busy, Left voicemail, No answer, Wrong number, ...) is MISSED
+
+
+def _norm(label):
+    """'Connected - Not KDM ' / 'connected–not–kdm' -> 'connected not kdm'."""
+    return re.sub(r"[\s\-\u2013\u2014_]+", " ", (label or "").strip().lower()).strip()
+
+
+# Call outcomes matched by LABEL. The two KDM outcomes carry the answer to "KDM on this call?"
+# in the outcome itself, so the rep picks one option instead of filling two fields. plan_round
+# attaches the live label from the portal's outcome list to every call, so adding these outcomes
+# in HubSpot (Settings > Calling > Call outcomes) is enough: no GUID needs to be pasted here.
+# Matching ignores case, spaces and dashes.
+KDM_LABELS = {"connected kdm", "connected the kdm", "connected decision maker"}
+NOT_KDM_LABELS = {"connected not kdm", "connected not the kdm", "connected not decision maker"}
+NOT_INTERESTED_LABELS = {"connected not interested"}
+CONNECTED_LABELS = {"connected", "connected interested", "connected call back later"}
+
+
+def outcome_label(call):
+    """The call outcome as text: the live label plan_round attached, else the built-in portal map."""
+    if not call:
+        return ""
+    return (call.get("outcome") or DISPOSITION_LABELS.get(call.get("disposition")) or "").strip()
+
+
+def is_connected(call):
+    return _norm(outcome_label(call)).startswith("connected")
 
 # Contact states. Anyone who connects stops getting emails; only MISSED contacts continue.
 PENDING       = "PENDING"        # in the pool, not called yet (round 0)
@@ -124,23 +152,29 @@ def classify_call(call):
     # No call in the window stays MISSED (still in the pool) but gets no email this round
     if call is None:
         return MISSED
-    disposition = call.get("disposition")
+    label = _norm(outcome_label(call))
     kdm_status = call.get("kdm_status")
-    if disposition == CONNECTED_NOT_INTERESTED:
+    if label in KDM_LABELS:
+        return KDM
+    if label in NOT_KDM_LABELS:
+        return NOT_KDM
+    if label in NOT_INTERESTED_LABELS:
+        # Not interested drops that contact only; the others continue and never mention them.
+        # The legacy "KDM on this call? = Yes" still closes the whole opportunity as lost.
         return CLOSED_LOST if kdm_status == "Yes" else OPTED_OUT
-    if disposition in CONNECTED:
+    if label in CONNECTED_LABELS:
+        # Plain "Connected" outcomes still read the legacy property when the rep filled it in
         return {"Yes": KDM, "No": NOT_KDM}.get(kdm_status, SPOKE_UNCLEAR)
     return MISSED
 
 
 def _history_entry(round_no, call, state, outcome=None):
-    disposition = call.get("disposition") if call else None
     return {
         "round": round_no,
         "call_id": str(call["id"]) if call else None,
-        "outcome": outcome or DISPOSITION_LABELS.get(disposition, disposition or "No call"),
+        "outcome": outcome or outcome_label(call) or (call.get("disposition") if call else None) or "No call",
         "kdm_status": call.get("kdm_status") if call else None,
-        "connected": disposition in CONNECTED or disposition == CONNECTED_NOT_INTERESTED,
+        "connected": is_connected(call),
         "state": state,
     }
 
@@ -316,8 +350,10 @@ def next_task_text(matrix, company, job_title, contacts, buyer_frames=None):
     head = " · ".join(p for p in [f"Call {next_round} of {TOTAL_ROUNDS}", company, job_title] if p)
     title = f"{head} · Call in order: {' → '.join(names)}"
     reminder = (
-        "Call everyone in order unless a KDM is confirmed. "
-        "Log each call with Call outcome and 'KDM on this call?'."
+        "Call everyone in order unless a KDM is confirmed. Log each call with Call outcome: "
+        "'Connected - KDM' when you reached the decision maker (stops the sequence for everyone), "
+        "'Connected - Not KDM' when it sits with someone else, "
+        "'Connected Not Interested' to drop that person. 'KDM on this call?' is no longer needed."
     )
 
     lines = []

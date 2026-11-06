@@ -48,16 +48,21 @@ The pool is every contact associated with the Opportunity at round 0, **except**
 
 **Rule: anyone who connects stops getting emails.** Only contacts we haven't reached (`MISSED`) get the next email. If the person who connects is the KDM, the whole sequence stops and the rep takes it from there.
 
-| Call outcome (`hs_call_disposition`) | KDM on this call? (`hpl_call_kdm_status`) | State | Effect |
-|---|---|---|---|
-| No answer, Busy, Left voicemail, Left live message, Gate Keeper, Wrong number, **or no call** | ignored | `MISSED` | Gets the next email. Referenced in others' emails. |
-| Connected, Connected Interested, Connected Call Back later | Unclear / blank | `SPOKE_UNCLEAR` | **Stops.** Still referenced ("had a quick chat with Alice"). |
-| Connected, Connected Interested, Connected Call Back later | No | `NOT_KDM` | **Stops.** Still referenced ("mentioned this probably sits with someone else"). |
-| Connected, Connected Interested, Connected Call Back later | Yes | `KDM` | **The whole sequence stops** for everyone, including the KDM. |
-| Connected Not Interested | No / Unclear / blank | `OPTED_OUT` | **Stops.** **Never referenced.** |
-| Connected Not Interested | Yes | `CLOSED_LOST` | **The whole sequence stops.** |
-| (the KDM was reached, or someone replied) | n/a | `FROZEN` | Stops. Never referenced. |
-| (replied by email) | n/a | `REPLIED` | **The whole sequence stops.** The rep continues from the inbox. |
+The rep records one thing per call: the **Call outcome**. Two outcomes carry the KDM answer in their name, so the separate "KDM on this call?" field is no longer needed (it still works where it is filled in, see the legacy rows).
+
+| Call outcome (`hs_call_disposition`, matched by label) | State | Effect |
+|---|---|---|
+| No answer, Busy, Left voicemail, Left live message, Gate Keeper, Wrong number, **or no call** | `MISSED` | Gets the next email. Referenced in others' emails ("tried calling Alice and didn't get through"). |
+| **Connected - KDM** | `KDM` | **The whole sequence stops** for everyone, including the KDM. Status `kdm_found`. |
+| **Connected - Not KDM** | `NOT_KDM` | **Stops** for that contact. Still referenced ("had a quick chat with Alice, who mentioned this probably sits with someone else"). The others continue. |
+| **Connected Not Interested** | `OPTED_OUT` | **Out of the sequence.** The others continue and **never mention them.** |
+| Connected, Connected Interested, Connected Call Back later (no KDM answer) | `SPOKE_UNCLEAR` | **Stops** for that contact. Still referenced by outcome ("had a quick chat", "was keen to hear more", "asked you to call back"). |
+| (the KDM was reached, or someone replied) | `FROZEN` | Stops. Never referenced. |
+| (replied by email) | `REPLIED` | **The whole sequence stops.** The rep continues from the inbox. |
+
+Legacy, for calls logged with the old `hpl_call_kdm_status` ("KDM on this call?") field: a plain Connected outcome with `Yes` counts as `KDM`, with `No` as `NOT_KDM`; Connected Not Interested with `Yes` is `CLOSED_LOST` and stops the whole sequence (status `closed_lost`). Any outcome the pipeline does not recognise counts as `MISSED`.
+
+Outcomes are matched by **label**, not by HubSpot's internal GUID: the plan step reads the portal's call outcome list on every run (`GET /calling/v1/dispositions`) and attaches the label to each call. Case, spaces and dashes are ignored, so "Connected - KDM", "Connected KDM" and "connected – kdm" are all the same outcome. Adding the two outcomes in HubSpot (Settings > Calling > Call outcomes) is the whole setup; nothing has to be pasted into the code.
 
 Besides calls, **an unsubscribe** (`hs_email_optout`) takes a contact out of the pool (`OPTED_OUT`), and they're never mentioned in other people's emails.
 
@@ -69,7 +74,7 @@ Besides calls, **an unsubscribe** (`hs_email_optout`) takes a contact out of the
 
 Rules:
 - When the sequence stops, every remaining slot is cleared, the next task title is empty, and later webhooks are no-ops.
-- KDM = Yes on a non-connected call is ignored. A KDM can't be confirmed over voicemail.
+- The KDM outcomes only exist for connected calls. A KDM can't be confirmed over voicemail, and the legacy KDM = Yes on a non-connected call is ignored.
 - If two contacts are marked KDM in the same round, **the first in call order wins**.
 - If everyone has connected without a KDM being found, nobody is left to email. The next task title is empty, and later webhooks are no-ops.
 
@@ -106,7 +111,7 @@ The reference line is one sentence and uses first names only, with no job titles
 | Connected Call Back later | "you spoke briefly with Alice, who asked you to call back another time" |
 | Connected Not Interested | never mentioned |
 
-If KDM on this call? = No, the fact also gets "…and Alice mentioned this probably sits with someone else".
+If they were not the KDM (outcome "Connected - Not KDM", or the legacy property = No), the fact also gets "…and Alice mentioned this probably sits with someone else".
 
 `OPTED_OUT` and `FROZEN` contacts are never mentioned. If there's nobody to reference, the email is the original email 2 or 3.
 
@@ -208,7 +213,8 @@ Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `resea
 
 | Object | Property | Type | Notes |
 |---|---|---|---|
-| Call | `hpl_call_kdm_status`, labelled **"KDM on this call?"** | Dropdown: `Yes` / `No` / `Unclear` | Put it in the Call information group, next to Call outcome. Internal values must be exactly `Yes`, `No`, `Unclear`. |
+| Call | **Call outcomes** `Connected - KDM` and `Connected - Not KDM` | Settings > Calling > Call outcomes | Added next to the standard outcomes. Matched by label, so the exact GUIDs do not matter. |
+| Call | `hpl_call_kdm_status`, labelled **"KDM on this call?"** | Dropdown: `Yes` / `No` / `Unclear` | **Legacy, optional.** Still read on plain Connected outcomes. Can be hidden from the call form once the reps use the two outcomes above. |
 | Opportunity | `hpl_call_round` | Number | Pipeline-owned. Never edit it in a workflow. |
 | Opportunity | `hpl_call_matrix` | Multi-line text | JSON. Pipeline-owned. |
 | Opportunity | `hpl_research_payload` | Multi-line text | JSON. Pipeline-owned. |
@@ -234,6 +240,31 @@ Each run uploads `round-output-<opportunity_id>`, containing `plan.json`, `resea
 
 ---
 
+## Cost
+
+One Opportunity, three contacts, nobody reached until the end (the most expensive path) makes **13 Claude calls** on `claude-sonnet-5-5` ($2 per million input tokens, $10 per million output tokens; thinking tokens are billed as output).
+
+| Step | Calls | Input per call | Notes |
+|---|---|---|---|
+| Research (round 0) | 1 | ~7,500 tokens | once per Opportunity |
+| Emails 1, 2 and 3 | 3 per round, 9 in total | ~5,000 tokens | one call per contact per round |
+| Emails 4 + 5 (round 3) | 3 | ~5,500 tokens | both emails in one call |
+| Fact-check revision | 0 to 3 | same as the email call | only when a draft fails the fact check |
+
+| | Tokens | Cost |
+|---|---|---|
+| Input, 13 calls | ~75,000 | $0.15 |
+| Visible output (the JSON) | ~3,500 | $0.04 |
+| Thinking | 15,000 to 40,000 | $0.15 to $0.40 |
+| Two fact-check revisions | ~10,000 | $0.03 |
+| **Total, worst case** | | **$0.35 to $0.65** |
+
+Figures from the prompts rendered by the offline test harness (`PROMPT_VERSION=jp`) and the response sizes of the live runs on 2026-11-05. Thinking is the uncertain part: Sonnet 5.5 reasons before every answer and the amount varies by call (the research call alone has used over 3,000 thinking tokens). A sequence that ends early costs less: a reply at round 1 is about $0.20, almost all of it round 0. GitHub Actions minutes are free on a public repository.
+
+`max_tokens` is 16,000 on every call. It is headroom, not spend: the model stops when the JSON is complete, but with 4,096 the research call ran out of room for its own thinking and failed with `stop_reason=max_tokens`.
+
+Two ways to tighten this when it matters: log `response.usage` in `scripts/claude.py` so every run reports its real input, output and thinking tokens, and cache the shared prompt prefix (about 17,000 characters are identical across the three contacts in a round), which would cut the input cost by roughly 40%.
+
 ## Testing
 
 ```
@@ -241,6 +272,6 @@ pip install -r requirements.txt pytest
 python -m pytest -q
 ```
 
-- `tests/test_build_matrix.py` covers every matrix scenario: all missed, KDM reached (stops everything), any connect stops that contact, KDM not interested, opted out, not KDM, everyone connected, ordering, the call window, and task text.
+- `tests/test_build_matrix.py` covers every matrix scenario: all missed, KDM reached (stops everything), any connect stops that contact, KDM not interested, opted out, not KDM, everyone connected, ordering, the call window, task text, and the label-matched outcomes ("Connected - KDM", "Connected - Not KDM", dash and case variants).
 - `tests/test_route_b_scenario.py` covers the Route B scenario instructions.
 - `tests/test_pipeline_offline.py` runs a full round 0 → 3 sequence end to end against an in-memory HubSpot and a fake Claude. It also covers the re-run guard and dry run.

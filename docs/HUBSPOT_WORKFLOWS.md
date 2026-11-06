@@ -12,7 +12,8 @@ The pipeline only **writes**: emails onto contacts, and the matrix, round and ne
         ▼                                         │
   W2  hpl_call_round changed + title known ──▶ (delay) ──▶ create call task "Call N of 3 · …"
         │
-  rep calls everyone in the task notes, logs each call (outcome + "KDM on this call?"),
+  rep calls everyone in the task notes, logs each call with a Call outcome ("Connected - KDM" /
+  "Connected - Not KDM" carry the KDM answer),
   completes the task
         │
   W3  Call task completed ── custom code ──▶ GitHub: round N ──▶ writes email_(N+1) for

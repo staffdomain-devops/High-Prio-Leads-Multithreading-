@@ -58,6 +58,11 @@ class FakeHubSpot:
     def associated_ids(self, f, i, t):
         return list(self.assoc.get((f, str(i), t), []))
 
+    outcome_labels = {}  # {disposition value: label}, what hs.call_outcome_labels returns
+
+    def call_outcome_labels(self):
+        return dict(self.outcome_labels)
+
     def update_object(self, t, i, props):
         self.objects[t].setdefault(str(i), {}).update(props)
 
@@ -128,7 +133,8 @@ class FakeClaude:
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     fake_hs, fake_claude = FakeHubSpot(), FakeClaude()
-    for name in ("get_object", "batch_read", "associated_ids", "update_object", "batch_update", "create_note"):
+    for name in ("get_object", "batch_read", "associated_ids", "update_object", "batch_update", "create_note",
+                 "call_outcome_labels"):
         monkeypatch.setattr(hs, name, getattr(fake_hs, name))
     monkeypatch.setattr(emailgen, "generate_json", fake_claude)
     monkeypatch.setattr(research_opportunity, "generate_json", fake_claude)
@@ -565,3 +571,24 @@ def test_default_set_email_1_has_no_required_names(env):
     run_round(env)
     assert contact(fake_hs, A)["hplmt_email_1"] == f"Body 1 for {A}"
     assert f"{A}_retry" not in fake_claude.prompts
+
+
+def test_kdm_call_outcome_label_stops_everything(env):
+    """The 'Connected - KDM' outcome needs no 'KDM on this call?' answer and no GUID in the code:
+    the label comes from the portal's outcome list at run time."""
+    fake_hs, fake_claude, _, _ = env
+    fake_hs.outcome_labels = {"guid-new-kdm": "Connected - KDM ", "guid-new-not-kdm": "Connected - Not KDM"}
+    run_round(env)
+    t1 = fake_hs.add_task("t1", 21)
+    fake_hs.add_call(A, t1, "guid-new-not-kdm")
+    fake_hs.add_call(B, t1, NO_ANSWER)
+    fake_hs.add_call(C, t1, "guid-new-kdm")
+    plan = run_round(env, t1)
+    opp = fake_hs.objects[hs.OPPORTUNITY][OPP]
+    matrix = json.loads(opp["hpl_call_matrix"])
+    assert plan["route"] == "none" and plan["recipients"] == []
+    assert matrix["status"] == "kdm_found" and matrix["kdm_contact_id"] == C
+    assert matrix["contacts"][A]["state"] == bm.NOT_KDM  # a not-KDM result in the same round is kept as is
+    assert matrix["contacts"][A]["history"][-1]["outcome"] == "Connected - Not KDM"
+    assert matrix["contacts"][C]["history"][-1]["connected"] is True
+    assert opp["hpl_next_call_task_title"] == ""

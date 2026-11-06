@@ -81,7 +81,9 @@ def resolve_task(opp_id, task_id):
     return latest, completed[latest]
 
 
-def fetch_calls(contact_id):
+def fetch_calls(contact_id, outcome_labels=None):
+    """Calls logged on the contact. `outcome_labels` ({disposition value: label}, from
+    hs.call_outcome_labels) lets the matrix recognise outcomes by name, e.g. "Connected - KDM"."""
     call_ids = hs.associated_ids("contacts", contact_id, "calls")
     calls = hs.batch_read("calls", call_ids, CALL_PROPS) if call_ids else {}
     return [
@@ -89,6 +91,7 @@ def fetch_calls(contact_id):
             "id": cid,
             "timestamp": parse_ts(p.get("hs_timestamp")) or parse_ts(p.get("hs_createdate")) or 0,
             "disposition": p.get("hs_call_disposition"),
+            "outcome": (outcome_labels or {}).get(p.get("hs_call_disposition")),
             "kdm_status": p.get("hpl_call_kdm_status"),
         }
         for cid, p in calls.items()
@@ -178,7 +181,8 @@ def main():
 
             contacts = hs.batch_read("contacts", before["order"], CONTACT_PROPS)
             live = bm.recipients(before)
-            calls_by_contact = {cid: fetch_calls(cid) for cid in live}
+            outcome_labels = hs.call_outcome_labels()
+            calls_by_contact = {cid: fetch_calls(cid, outcome_labels) for cid in live}
             opted_out = {cid for cid in live if contacts.get(cid, {}).get("hs_email_optout") == "true"}
             # Replies since the sequence started. Older matrices without started_at fall back
             # to the first round's task window start

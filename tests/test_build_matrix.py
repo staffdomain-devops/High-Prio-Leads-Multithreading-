@@ -30,6 +30,13 @@ def call(round_no, disposition, kdm_status=None, offset=10):
             "disposition": disposition, "kdm_status": kdm_status}
 
 
+def labelled_call(round_no, label, kdm_status=None, offset=10):
+    """A call whose outcome is only known by its label (plan_round attaches it from the live list)."""
+    start, _ = WINDOWS[round_no]
+    return {"id": f"{round_no}lbl{offset}", "timestamp": start + offset,
+            "disposition": "guid-not-in-the-map", "outcome": label, "kdm_status": kdm_status}
+
+
 def run_round(matrix, round_no, calls):
     return bm.advance(matrix, round_no, {cid: [c] for cid, c in calls.items()}, WINDOWS[round_no])
 
@@ -298,3 +305,48 @@ def test_who_clause():
     assert bm.who_clause(["", "Ben"]) == "you or Ben"
     # route B contexts carry dicts
     assert bm.who_clause([{"first_name": "Ben", "state": bm.MISSED, "outcome": "No answer"}]) == "you or Ben"
+
+
+# --- outcomes recognised by label (KDM folded into the call outcome) --------------
+
+@pytest.mark.parametrize("label", ["Connected - KDM", "connected kdm", " Connected \u2013 KDM ", "Connected_KDM"])
+def test_connected_kdm_outcome_stops_everyone_without_the_kdm_property(label):
+    m = run_round(bm.new_matrix(CONTACTS), 1,
+                  {A: call(1, NO_ANSWER), B: labelled_call(1, label), C: call(1, NO_ANSWER)})
+    assert states(m) == {A: bm.FROZEN, B: bm.KDM, C: bm.FROZEN}
+    assert m["status"] == bm.STATUS_KDM_FOUND and m["kdm_contact_id"] == B
+    assert bm.recipients(m) == []
+    assert m["contacts"][B]["history"][-1]["connected"] is True
+
+
+@pytest.mark.parametrize("label", ["Connected - Not KDM", "connected not kdm", "Connected-Not-KDM"])
+def test_connected_not_kdm_outcome_stops_that_contact_and_is_referenced(label):
+    m = run_round(bm.new_matrix(CONTACTS), 1,
+                  {A: labelled_call(1, label), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
+    assert states(m) == {A: bm.NOT_KDM, B: bm.MISSED, C: bm.MISSED}
+    assert bm.recipients(m) == [B, C]
+    assert {"first_name": "Alice", "state": bm.NOT_KDM, "outcome": label} in bm.route_b_context(m, B)["others"]
+
+
+def test_not_interested_by_label_drops_only_that_contact():
+    m = run_round(bm.new_matrix(CONTACTS), 1,
+                  {A: labelled_call(1, "Connected Not Interested "), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
+    assert states(m) == {A: bm.OPTED_OUT, B: bm.MISSED, C: bm.MISSED}
+    assert m["status"] == bm.STATUS_ACTIVE
+    assert bm.recipients(m) == [B, C]
+    assert all(o["first_name"] != "Alice" for o in bm.route_b_context(m, B)["others"])
+
+
+def test_live_label_wins_over_the_built_in_map_and_unknown_labels_are_missed():
+    # A known GUID whose live label says voicemail is a missed call; an unknown outcome is missed too
+    renamed = dict(call(1, CONNECTED, "Yes"), outcome="Left voicemail")
+    m = run_round(bm.new_matrix(CONTACTS), 1,
+                  {A: renamed, B: labelled_call(1, "Spoke to reception"), C: call(1, NO_ANSWER)})
+    assert states(m) == {A: bm.MISSED, B: bm.MISSED, C: bm.MISSED}
+    assert m["contacts"][B]["history"][-1]["outcome"] == "Spoke to reception"
+    assert m["contacts"][B]["history"][-1]["connected"] is False
+
+
+def test_task_notes_tell_the_rep_which_outcome_to_pick():
+    _, notes = bm.next_task_text(bm.new_matrix(CONTACTS), "City Beach", "Assistant Buyer", CONTACTS)
+    assert "'Connected - KDM'" in notes and "'Connected - Not KDM'" in notes and "'Connected Not Interested'" in notes

@@ -80,3 +80,20 @@ def batch_update(object_type, updates):
     items = [{"id": str(k), "properties": v} for k, v in updates.items()]
     for i in range(0, len(items), 100):
         _request("POST", f"/crm/v3/objects/{object_type}/batch/update", json={"inputs": items[i:i + 100]})
+
+
+def call_outcome_labels():
+    """{hs_call_disposition value: label} from the portal's call outcome list (Settings > Calling).
+
+    Lets build_matrix recognise outcomes by label, so new outcomes work without a GUID being pasted
+    into the code. Empty on failure: build_matrix then falls back to its built-in map, and a round
+    never fails because this list could not be read.
+    """
+    try:
+        data = _request("GET", "/calling/v1/dispositions")
+    except Exception as exc:  # noqa: BLE001 - diagnostics only
+        print(f"WARNING: could not read the call outcome list: {exc}")
+        return {}
+    items = data.values() if isinstance(data, dict) else data
+    return {str(d["id"]): (d.get("label") or "").strip()
+            for d in items if isinstance(d, dict) and d.get("id") and not d.get("deleted")}
