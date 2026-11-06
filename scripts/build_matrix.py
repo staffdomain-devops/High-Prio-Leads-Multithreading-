@@ -30,6 +30,8 @@ DISPOSITION_LABELS = {
     "17b47fee-58de-441e-a44c-c6300d46f273": "Wrong number",
     "f240bbac-87c9-4f6e-bf70-924b57d47db7": "Connected",
     "802ebb52-912d-437b-9a68-244f9d347918": "Gate Keeper",
+    "cd69394d-8b05-4f4e-a70b-26dc03316885": "Connected KDM",        # added 2026-11-06
+    "52fef441-f82f-4024-90b8-3c5fb4f03c6d": "Connected - Not KDM",  # added 2026-11-06
 }
 CONNECTED_NOT_INTERESTED = "a44f5d58-3e2f-44ce-afbf-adf524cb190e"
 CONNECTED = {
