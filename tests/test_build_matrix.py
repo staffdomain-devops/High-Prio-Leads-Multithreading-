@@ -73,8 +73,9 @@ def test_all_missed_each_email_references_the_other_two():
     assert bm.recipients(m) == [A, B, C]
     ctx = bm.route_b_context(m, B)
     assert ctx["state"] == bm.MISSED
-    assert ctx["others"] == [{"first_name": "Alice", "state": bm.MISSED, "outcome": "No answer"},
-                              {"first_name": "Cara", "state": bm.MISSED, "outcome": "No answer"}]
+    assert ctx["others"] == [{"first_name": "Alice", "name": "Alice", "state": bm.MISSED, "outcome": "No answer"},
+                              {"first_name": "Cara", "name": "Cara", "state": bm.MISSED, "outcome": "No answer"}]
+    assert ctx["recipient_first_name"] == "Ben"
 
 
 # --- scenario 2: KDM found mid-round -----------------------------------------
@@ -118,7 +119,7 @@ def test_not_interested_non_kdm_opts_out_and_is_never_referenced(kdm_status):
     assert m["status"] == bm.STATUS_ACTIVE
     assert states(m)[A] == bm.OPTED_OUT
     assert bm.recipients(m) == [B, C]
-    assert bm.route_b_context(m, B)["others"] == [{"first_name": "Cara", "state": bm.MISSED, "outcome": "No answer"}]
+    assert bm.route_b_context(m, B)["others"] == [{"first_name": "Cara", "name": "Cara", "state": bm.MISSED, "outcome": "No answer"}]
 
 
 # --- connected but not KDM / unclear ---------------------------------------------
@@ -127,10 +128,11 @@ def test_not_kdm_leaves_pool_but_is_referenced():
     m = run_round(bm.new_matrix(CONTACTS), 1, {A: call(1, CONNECTED, "No"), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
     assert states(m)[A] == bm.NOT_KDM
     assert bm.recipients(m) == [B, C]
-    assert {"first_name": "Alice", "state": bm.NOT_KDM, "outcome": "Connected"} in bm.route_b_context(m, C)["others"]
+    alice = {"first_name": "Alice", "name": "Alice", "state": bm.NOT_KDM, "outcome": "Connected"}
+    assert alice in bm.route_b_context(m, C)["others"]
     # still referenced in the next round
     m2 = run_round(m, 2, {B: call(2, NO_ANSWER), C: call(2, NO_ANSWER)})
-    assert {"first_name": "Alice", "state": bm.NOT_KDM, "outcome": "Connected"} in bm.route_b_context(m2, B)["others"]
+    assert alice in bm.route_b_context(m2, B)["others"]
 
 
 def test_spoke_unclear_stops_but_is_referenced():
@@ -139,8 +141,8 @@ def test_spoke_unclear_stops_but_is_referenced():
     assert m["status"] == bm.STATUS_ACTIVE
     assert bm.recipients(m) == [B]
     assert bm.route_b_context(m, B)["others"] == [
-        {"first_name": "Alice", "state": bm.SPOKE_UNCLEAR, "outcome": "Connected Call Back later"},
-        {"first_name": "Cara", "state": bm.SPOKE_UNCLEAR, "outcome": "Connected"}]
+        {"first_name": "Alice", "name": "Alice", "state": bm.SPOKE_UNCLEAR, "outcome": "Connected Call Back later"},
+        {"first_name": "Cara", "name": "Cara", "state": bm.SPOKE_UNCLEAR, "outcome": "Connected"}]
     assert bm.slots_to_clear(bm.new_matrix(CONTACTS), m) == {A: [2, 3, 4, 5], C: [2, 3, 4, 5]}
 
 
@@ -244,7 +246,7 @@ def test_three_rounds_all_missed_then_email_4_5_for_everyone():
         m = run_round(m, r, {A: call(r, NO_ANSWER), B: call(r, NO_ANSWER), C: call(r, NO_ANSWER)})
     assert m["round"] == 3
     assert bm.recipients(m) == [A, B, C]
-    assert bm.route_a_context(m, A) == {"state": bm.MISSED, "others": ["Ben", "Cara"]}
+    assert bm.route_a_context(m, A) == {"state": bm.MISSED, "others": ["Ben", "Cara"], "recipient_first_name": "Alice"}
     assert bm.next_task_text(m, "City Beach", "Assistant Buyer", CONTACTS) == ("", "")
 
 
@@ -305,6 +307,50 @@ def test_who_clause():
     assert bm.who_clause(["", "Ben"]) == "you or Ben"
     # route B contexts carry dicts
     assert bm.who_clause([{"first_name": "Ben", "state": bm.MISSED, "outcome": "No answer"}]) == "you or Ben"
+    assert bm.who_clause([{"first_name": "Ben", "name": "Ben Baker", "state": bm.MISSED, "outcome": "No answer"}]) == "you or Ben Baker"
+
+
+# --- two people in the pool share a first name -------------------------------------
+
+TWINS = {
+    "201": {"firstname": "Michael", "lastname": "Brown", "contact_icp_rating": "Prime (MM)", "kdm_rank": "1"},
+    "202": {"firstname": "Sarah", "lastname": "Lee", "contact_icp_rating": "Prime (MM)", "kdm_rank": "2"},
+    "203": {"firstname": "michael", "lastname": "Tan", "contact_icp_rating": "Core (MM)", "kdm_rank": "1"},
+}
+
+
+def test_shared_first_names_get_their_surname_everywhere():
+    m = bm.new_matrix(TWINS)
+    assert m["order"] == ["201", "202", "203"]
+    assert bm.display_names(m) == {"201": "Michael Brown", "202": "Sarah", "203": "michael Tan"}
+    assert bm.route_a_context(m, "202")["others"] == ["Michael Brown", "michael Tan"]
+    assert bm.route_a_context(m, "201")["others"] == ["Sarah", "michael Tan"]
+
+
+def test_who_clause_calls_a_namesake_your_colleague():
+    m = bm.new_matrix(TWINS)
+    assert bm.who_clause(bm.route_a_context(m, "201")["others"], "Michael") == "you, Sarah or your colleague michael Tan"
+    assert bm.who_clause(bm.route_a_context(m, "202")["others"], "Sarah") == "you, Michael Brown or michael Tan"
+    assert bm.colleague("Michael Tan", "MICHAEL ") == "your colleague Michael Tan"
+    assert bm.colleague("Michaela Tan", "Michael") == "Michaela Tan"
+    assert bm.colleague("Sarah", None) == "Sarah"
+
+
+def test_shared_first_names_in_route_b_references():
+    m = run_round(bm.new_matrix(TWINS), 1,
+                  {"201": call(1, NO_ANSWER), "202": call(1, NO_ANSWER), "203": call(1, CONNECTED, "No")})
+    ctx = bm.route_b_context(m, "201")
+    assert [(o["name"], o["state"]) for o in ctx["others"]] == [("Sarah", bm.MISSED), ("michael Tan", bm.NOT_KDM)]
+    assert ctx["recipient_first_name"] == "Michael"
+    assert [o["name"] for o in bm.route_b_context(m, "202")["others"]] == ["Michael Brown", "michael Tan"]
+
+
+def test_namesake_without_a_surname_keeps_the_first_name_and_nameless_contacts_are_left_out():
+    m = bm.new_matrix({"1": {"firstname": "Michael", "lastname": ""}, "2": {"firstname": "Michael", "lastname": "Tan"},
+                       "3": {"firstname": "", "lastname": "Nameless"}})
+    assert bm.display_names(m) == {"1": "Michael", "2": "Michael Tan", "3": ""}
+    assert bm.route_a_context(m, "2")["others"] == ["Michael"]
+    assert bm.route_a_context(m, "1")["others"] == ["Michael Tan"]
 
 
 # --- outcomes recognised by label (KDM folded into the call outcome) --------------
@@ -325,7 +371,7 @@ def test_connected_not_kdm_outcome_stops_that_contact_and_is_referenced(label):
                   {A: labelled_call(1, label), B: call(1, NO_ANSWER), C: call(1, NO_ANSWER)})
     assert states(m) == {A: bm.NOT_KDM, B: bm.MISSED, C: bm.MISSED}
     assert bm.recipients(m) == [B, C]
-    assert {"first_name": "Alice", "state": bm.NOT_KDM, "outcome": label} in bm.route_b_context(m, B)["others"]
+    assert {"first_name": "Alice", "name": "Alice", "state": bm.NOT_KDM, "outcome": label} in bm.route_b_context(m, B)["others"]
 
 
 def test_not_interested_by_label_drops_only_that_contact():

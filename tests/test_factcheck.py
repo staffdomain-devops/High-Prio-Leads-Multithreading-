@@ -97,6 +97,46 @@ def test_email_1_may_promise_a_call_but_not_claim_one():
     assert len(check(body, {"Ben": bm.PENDING}, calls_allowed=False)) == 1
 
 
+# --- two people share a first name: the pool carries surnames --------------------------
+
+TWIN_POOL = ["Michael Brown", "Sarah", "Michael Tan"]
+
+
+def plan_twins(route, round_no, others, recipient="201"):
+    return {
+        "route": route, "round": round_no,
+        "contacts": {"201": {"firstname": "Michael"}, "202": {"firstname": "Sarah"}, "203": {"firstname": "Michael"}},
+        "matrix_after": {"contacts": {"201": {"first_name": "Michael", "last_name": "Brown"},
+                                      "202": {"first_name": "Sarah", "last_name": "Lee"},
+                                      "203": {"first_name": "Michael", "last_name": "Tan"}}},
+        "contexts": {recipient: {"state": bm.MISSED, "others": others, "recipient_first_name": "Michael" if recipient != "202" else "Sarah"}},
+    }
+
+
+def test_namesake_is_checked_by_full_name_and_the_recipients_own_name_is_not():
+    others = [{"first_name": "Michael", "name": "Michael Tan", "state": bm.MISSED, "outcome": "No answer"}]
+    ok = {2: {"subject": "Quick one", "body": "Hi Michael, just tried you and your colleague Michael Tan too, no luck with either."}}
+    assert factcheck.check_emails(plan_twins("B", 1, others), "201", ok)
+    bad = {2: {"subject": "Quick one", "body": "Hi Michael, had a quick chat with Michael Tan about this."}}
+    with pytest.raises(factcheck.FactCheckError, match="says we reached Michael Tan, but Michael Tan was missed"):
+        factcheck.check_emails(plan_twins("B", 1, others), "201", bad)
+
+
+def test_bare_first_name_is_refused_when_two_people_share_it():
+    others = [{"first_name": "Michael", "name": "Michael Brown", "state": bm.MISSED, "outcome": "No answer"},
+              {"first_name": "Michael", "name": "Michael Tan", "state": bm.MISSED, "outcome": "No answer"}]
+    plan = plan_twins("B", 1, others, recipient="202")
+    assert factcheck.check_emails(plan, "202", {2: {"subject": "x", "body": "Tried Michael Brown and Michael Tan too, no luck."}})
+    with pytest.raises(factcheck.FactCheckError, match="without a surname"):
+        factcheck.check_emails(plan, "202", {2: {"subject": "x", "body": "Tried Michael too, no luck."}})
+
+
+def test_ambiguous_first_names_need_two_surnamed_entries():
+    assert factcheck.ambiguous_first_names(TWIN_POOL) == {"michael"}
+    assert factcheck.ambiguous_first_names(["Alice", "Ben", "Cara"]) == set()
+    assert factcheck.ambiguous_first_names(["Michael Brown", "Sarah"]) == set()
+
+
 # --- plan wiring -----------------------------------------------------------------
 
 def plan_for(route, round_no, others, recipient="101"):

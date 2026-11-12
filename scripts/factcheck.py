@@ -129,14 +129,36 @@ def check_body(body, recipient_first_name, pool_first_names, allowed_others, cal
 
 
 def allowed_others_for(plan, cid):
-    """{first_name: state} this contact's email may mention, from the plan's route context."""
+    """{name: state} this contact's email may mention, from the plan's route context. Names are the
+    display names the prompt was given (surname included when two people share a first name)."""
     ctx = (plan.get("contexts") or {}).get(cid) or {}
     others = ctx.get("others") or []
     if others and isinstance(others[0], dict):            # route B: facts about each person
-        return {o["first_name"]: o["state"] for o in others if o.get("first_name")}
+        return {(o.get("name") or o.get("first_name")): o["state"] for o in others if o.get("name") or o.get("first_name")}
     if plan.get("round") == 0:                              # route A, email 1: names only, no call facts
         return {n: bm.PENDING for n in others if n}
     return {}                                               # route A, emails 4/5: nobody
+
+
+def ambiguous_first_names(pool_names):
+    """First names that two or more display names share ("Michael Brown", "Michael Tan" -> {"michael"}).
+    A body that uses such a first name on its own is ambiguous and is refused."""
+    firsts = [n.split()[0].lower() for n in pool_names if n and " " in n.strip()]
+    return {f for f in set(firsts) if firsts.count(f) > 1 and len(f) >= MIN_NAME_LEN}
+
+
+def bare_name_problems(body, recipient_first_name, pool_names):
+    problems = []
+    recipient = (recipient_first_name or "").strip().lower()
+    for first in ambiguous_first_names(pool_names):
+        if first == recipient:      # "Hi Michael" greets the recipient; can't be told apart, so not checked
+            continue
+        full = [n for n in pool_names if n.split()[0].lower() == first]
+        for s in _sentences(body):
+            if _mentions(s, first) and not any(_mentions(s, n) for n in full):
+                problems.append(f"says {first.title()} without a surname, but {len(full)} people there are called "
+                                f"{first.title()} ({', '.join(full)}): \"{s}\"")
+    return problems
 
 
 def missing_names(body, required_names):
@@ -149,13 +171,17 @@ def check_emails(plan, cid, emails, required_names=()):
     """Check every email for this contact against the plan. Raises FactCheckError with all problems.
     `required_names`: first names email 1 must mention (the prompt set's who-clause); empty means no such rule."""
     matrix = plan.get("matrix_after") or {}
-    pool = [c.get("first_name", "") for c in (matrix.get("contacts") or {}).values()]
-    recipient = (plan.get("contacts", {}).get(cid) or {}).get("firstname", "")
+    names = bm.display_names(matrix)                     # surname added where first names collide
+    pool = list(names.values())
+    recipient_first = (plan.get("contacts", {}).get(cid) or {}).get("firstname", "")
+    recipient = names.get(cid) or recipient_first
     allowed = allowed_others_for(plan, cid)
     calls_allowed = plan.get("route") == "B"
     problems = []
     for n, email in emails.items():
         for p in check_body(email.get("body", ""), recipient, pool, allowed, calls_allowed):
+            problems.append(f"email_{n}: {p}")
+        for p in bare_name_problems(email.get("body", ""), recipient_first, pool):
             problems.append(f"email_{n}: {p}")
         for p in check_body(email.get("subject", ""), recipient, pool, allowed, calls_allowed):
             if "must not be referenced" in p or "reached" in p:

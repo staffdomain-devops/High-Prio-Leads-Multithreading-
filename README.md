@@ -101,7 +101,7 @@ Both routes share `prompts/base.md`: who we are, prospect details, research insi
 - The email 3 opener is "I may be barking up the wrong tree here, but I just tried giving you a quick call…"
 - Both include a reference line about the others and close with "point me in the right direction".
 
-The reference line is one sentence and uses first names only, with no job titles and no gendered pronouns. Connected contacts are referenced by **their call outcome**:
+The reference line is one sentence with no job titles and no gendered pronouns. People are named by first name, except when two people in the pool share one: then every one of them gets first name + surname ("Michael Tan") in every email of the sequence, and the one who shares the recipient's own first name is introduced as "your colleague Michael Tan". The same display names fill the email 1 opener ("not sure if it's you, Sarah or your colleague Michael Tan"), and the fact check refuses an email that uses such a first name on its own. The names are worked out in `display_names()` / `colleague()` in `scripts/build_matrix.py`. Connected contacts are referenced by **their call outcome**:
 
 | Their call outcome | Fact given to the model |
 |---|---|

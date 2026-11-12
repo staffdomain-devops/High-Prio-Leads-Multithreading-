@@ -285,12 +285,43 @@ def slots_to_clear(before, after):
     }
 
 
+def display_names(matrix):
+    """{contact_id: the name emails use for that person}. First name alone, unless someone else in
+    the pool shares it (case-insensitive): then first name + surname for all of them, for the whole
+    sequence, so an email never says "you, Michael or Michael". No surname on record → first name.
+    No first name → "" (that contact is never named)."""
+    contacts = matrix.get("contacts") or {}
+    counts = {}
+    for c in contacts.values():
+        key = (c.get("first_name") or "").strip().lower()
+        if key:
+            counts[key] = counts.get(key, 0) + 1
+    names = {}
+    for cid, c in contacts.items():
+        first = (c.get("first_name") or "").strip()
+        last = (c.get("last_name") or "").strip()
+        names[cid] = f"{first} {last}" if first and last and counts[first.lower()] > 1 else first
+    return names
+
+
+def colleague(name, recipient_first_name):
+    """'your colleague Michael Tan' when the recipient is also a Michael, else the name unchanged.
+    Stops a Michael reading "I also tried Michael" about someone else."""
+    first = (recipient_first_name or "").strip().lower()
+    if first and name and name.split()[0].lower() == first:
+        return f"your colleague {name}"
+    return name
+
+
 def route_b_context(matrix, cid):
-    """Scenario input for emails 2/3: recipient state + who else can be referenced."""
+    """Scenario input for emails 2/3: recipient state + who else can be referenced.
+    `name` is the display name (surname added when first names collide, see display_names)."""
     contact = matrix["contacts"][cid]
+    names = display_names(matrix)
     others = [
         {
             "first_name": matrix["contacts"][o]["first_name"],
+            "name": names[o],
             "state": matrix["contacts"][o]["state"],
             # Outcome of the call that set their state — drives how they are referenced
             "outcome": matrix["contacts"][o]["history"][-1]["outcome"],
@@ -298,36 +329,40 @@ def route_b_context(matrix, cid):
         for o in matrix["order"]
         if o != cid
         and matrix["contacts"][o]["state"] in REFERENCEABLE_STATES
-        and matrix["contacts"][o]["first_name"]
+        and names[o]
         and not _no_call_this_round(matrix, o)  # never claim we tried someone we didn't call
     ]
     return {
         "state": contact["state"],
         "last_outcome": contact["history"][-1]["outcome"],
         "others": others,
+        "recipient_first_name": contact["first_name"],
     }
 
 
 def route_a_context(matrix, cid):
     """Emails 1/4/5 never reference calls. Email 1 names the other people in the pool
-    ("not sure if it's you, Ben or Cara"); emails 4/5 ignore `others`."""
+    ("not sure if it's you, Ben or Cara"); emails 4/5 ignore `others`. Names are display names."""
+    names = display_names(matrix)
     others = [
-        matrix["contacts"][o]["first_name"]
+        names[o]
         for o in matrix["order"]
-        if o != cid and matrix["contacts"][o]["state"] in LIVE_STATES and matrix["contacts"][o]["first_name"]
+        if o != cid and matrix["contacts"][o]["state"] in LIVE_STATES and names[o]
     ]
-    return {"state": matrix["contacts"][cid]["state"], "others": others}
+    return {"state": matrix["contacts"][cid]["state"], "others": others,
+            "recipient_first_name": matrix["contacts"][cid]["first_name"]}
 
 
 MAX_NAMED_OTHERS = 2
 
 
-def who_clause(others):
+def who_clause(others, recipient_first_name=None):
     """'you' / 'you or Ben' / 'you, Ben or Cara' / 'you, Ben, Cara or someone else there'.
     Fills the email 1 opener. Caps at MAX_NAMED_OTHERS names so it never reads as a roll call.
-    Accepts route A `others` (first names) or route B `others` (dicts with first_name)."""
-    names = [o["first_name"] if isinstance(o, dict) else o for o in others]
-    names = [n for n in names if n]
+    Accepts route A `others` (names) or route B `others` (dicts with name / first_name).
+    Someone who shares the recipient's first name becomes "your colleague Michael Tan"."""
+    names = [(o.get("name") or o["first_name"]) if isinstance(o, dict) else o for o in others]
+    names = [colleague(n, recipient_first_name) for n in names if n]
     if not names:
         return "you"
     named = names[:MAX_NAMED_OTHERS]

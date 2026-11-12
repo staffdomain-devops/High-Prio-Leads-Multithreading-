@@ -52,7 +52,8 @@ DEFAULT_TEXT = {
     "reference_intro": (
         "REFERENCE LINE: add exactly one natural sentence about who else at {company} "
         "you have been trying to reach, using only these facts:\n{facts}\n"
-        "  First names only, no job titles. Refer to these people by name only: no he, she, his or her. "
+        "  Use each person's name exactly as written above (some carry a surname because two people there "
+        "share a first name), no job titles. Refer to these people by name only: no he, she, his or her. "
         "Do not list them; weave them into one sentence."
     ),
 }
@@ -88,11 +89,13 @@ JP_TEXT = {
     "reference_intro": {
         2: ("REFERENCE LINE: straight after the opener, one short sentence about who else you tried, "
             "using only these facts and nothing more:\n{facts}\n"
-            "  First names only, no job titles, no he, she, his or her. Do not name the company. "
+            "  Names exactly as written above (a surname is there only when two people share a first name), "
+            "no job titles, no he, she, his or her. Do not name the company. "
             "It's fine to add that you're still not sure who the right person is."),
         3: ("REFERENCE LINE: straight after the opener, a few words about who else you tried, "
             "using only these facts and nothing more:\n{facts}\n"
-            "  As short as it can be. First names only, no job titles, no he, she, his or her. Do not name the company."),
+            "  As short as it can be. Names exactly as written above, no job titles, no he, she, his or her. "
+            "Do not name the company."),
     },
 }
 
@@ -104,14 +107,18 @@ def route_b_text():
     return ROUTE_B_TEXT.get(prompt_version(), DEFAULT_TEXT)
 
 
-def reference_fact(other, text=DEFAULT_TEXT):
-    name = other["first_name"]
+def reference_fact(other, text=DEFAULT_TEXT, recipient_first_name=None):
+    """One fact about another person. `name` (display name: surname added when two people in the pool
+    share a first name) wins over `first_name`; someone who shares the recipient's first name is
+    introduced as "your colleague Michael Tan" the first time, then by name."""
+    bare = other.get("name") or other["first_name"]
+    name = bm.colleague(bare, recipient_first_name)
     if other["state"] == bm.MISSED:
         return text["missed_fact"].format(name=name)
     facts = text["connected_facts"]
     fact = facts.get(other["outcome"], facts["Connected"]).format(name=name)
     if other["state"] == bm.NOT_KDM:
-        fact += text["not_kdm_suffix"].format(name=name)
+        fact += text["not_kdm_suffix"].format(name=bare)
     return fact
 
 
@@ -120,10 +127,10 @@ def _for_email(entry, email_no):
     return entry[email_no] if isinstance(entry, dict) else entry
 
 
-def reference_line(others, company, text=DEFAULT_TEXT, email_no=2):
+def reference_line(others, company, text=DEFAULT_TEXT, email_no=2, recipient_first_name=None):
     if not others:
         return _for_email(text["reference_none"], email_no)
-    facts = "\n".join(f"  - {reference_fact(o, text)}" for o in others)
+    facts = "\n".join(f"  - {reference_fact(o, text, recipient_first_name)}" for o in others)
     return _for_email(text["reference_intro"], email_no).format(company=company or "the company", facts=facts)
 
 
@@ -135,7 +142,7 @@ def scenario_instructions(email_no, ctx, company, text=None):
     return "\n\n".join([
         "WHAT HAPPENED: " + text["what_happened"],
         "OPENER: " + text["openers"][email_no],
-        reference_line(ctx["others"], company, text, email_no),
+        reference_line(ctx["others"], company, text, email_no, ctx.get("recipient_first_name")),
         "CLOSE: " + _for_email(text["close"], email_no),
     ])
 

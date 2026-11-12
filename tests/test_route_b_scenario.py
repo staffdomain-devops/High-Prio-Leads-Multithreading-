@@ -38,6 +38,26 @@ def test_not_kdm_adds_sits_with_someone_else():
             "and Alice mentioned this probably sits with someone else") in text
 
 
+def test_namesakes_carry_surnames_and_the_recipients_namesake_is_your_colleague():
+    c = ctx(others=[{"first_name": "Michael", "name": "Michael Tan", "state": bm.MISSED, "outcome": "No answer"},
+                    {"first_name": "Michael", "name": "Michael Brown", "state": bm.NOT_KDM, "outcome": "Connected"},
+                    {"first_name": "Sarah", "name": "Sarah", "state": bm.MISSED, "outcome": "Busy"}])
+    c["recipient_first_name"] = "Michael"
+    text = scenario_instructions(2, c, "City Beach", text=DEFAULT_TEXT)
+    assert "you also tried calling your colleague Michael Tan and didn't get through" in text
+    assert ("you had a quick chat with your colleague Michael Brown "
+            "and Michael Brown mentioned this probably sits with someone else") in text
+    assert "you also tried calling Sarah and didn't get through" in text
+    assert "name exactly as written" in text
+    # a different recipient gets plain surnamed names, and old contexts without `name` still work
+    c2 = ctx(others=c["others"][:2])
+    c2["recipient_first_name"] = "Sarah"
+    text = scenario_instructions(2, c2, "City Beach", text=JP_TEXT)
+    assert "you tried Michael Tan too and didn't get through" in text
+    assert "your colleague" not in text
+    assert "you tried Eve too" in scenario_instructions(2, ctx(others=[other("Eve", bm.MISSED, "Busy")]), "X", text=JP_TEXT)
+
+
 def test_email_3_opener_and_no_references():
     text = scenario_instructions(3, ctx(), "City Beach", text=DEFAULT_TEXT)
     assert "barking up the wrong tree" in text
